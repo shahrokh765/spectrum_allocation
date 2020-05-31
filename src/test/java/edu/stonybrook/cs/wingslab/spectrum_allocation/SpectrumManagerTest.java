@@ -45,7 +45,7 @@ public class SpectrumManagerTest extends TestCase {
         SpectrumManager spectrumManager = new SpectrumManager(
                 createPus(shape,15), createSUs(shape, 1), createSS(shape, 400),
                 new LogDistancePM(3, 1), shape, 1);
-        System.out.println(spectrumManager.computeSUMAXPower());
+        System.out.println(spectrumManager.computeSUMAXPower(false));
     }
 
     public void testSuRequestAccepted() {
@@ -53,7 +53,7 @@ public class SpectrumManagerTest extends TestCase {
         SpectrumManager spectrumManager = new SpectrumManager(
                 createPus(shape,15), createSUs(shape, 1), createSS(shape, 400),
                 new LogDistancePM(3, 1), shape, 1);
-        spectrumManager.computeSUMAXPower();
+        spectrumManager.computeSUMAXPower(false);
         System.out.println(spectrumManager.suRequestAccepted());
     }
 
@@ -62,7 +62,7 @@ public class SpectrumManagerTest extends TestCase {
         SpectrumManager spectrumManager = new SpectrumManager(
                 createPus(shape,15), createSUs(shape, 1), createSS(shape, 400),
                 new LogDistancePM(3, 1), shape, 1);
-        spectrumManager.computeSUMAXPower();
+        spectrumManager.computeSUMAXPower(false);
         System.out.println(spectrumManager.pusSample());
     }
 
@@ -71,7 +71,7 @@ public class SpectrumManagerTest extends TestCase {
         SpectrumManager spectrumManager = new SpectrumManager(
                 createPus(shape,15), createSUs(shape, 1), createSS(shape, 400),
                 new LogDistancePM(3, 1), shape, 1);
-        spectrumManager.computeSUMAXPower();
+        spectrumManager.computeSUMAXPower(false);
         System.out.println(spectrumManager.sssSample());
     }
 
@@ -80,7 +80,7 @@ public class SpectrumManagerTest extends TestCase {
         SpectrumManager spectrumManager = new SpectrumManager(
                 createPus(shape,15), createSUs(shape, 1), createSS(shape, 400),
                 new LogDistancePM(3, 1), shape, 1);
-        spectrumManager.computeSUMAXPower();
+        spectrumManager.computeSUMAXPower(false);
         System.out.println(spectrumManager.pusSample());
         System.out.println(spectrumManager.maxPowerSample());
     }

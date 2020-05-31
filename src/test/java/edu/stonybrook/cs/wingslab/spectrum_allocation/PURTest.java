@@ -123,6 +123,7 @@ public class PURTest extends TestCase {
 
     @Test
     void createPURs() {
+        java.awt.Point point = new java.awt.Point();
         PUR[] purs = PUR.createPURs("PU10", 100, PUR.InterferenceMethod.BETA,
                 1.5,5, 10,  15.0);
         for (PUR pur : purs)

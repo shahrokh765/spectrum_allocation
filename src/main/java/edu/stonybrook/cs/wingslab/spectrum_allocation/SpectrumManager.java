@@ -138,13 +138,21 @@ public class SpectrumManager {
     }
 
     /**Compute maximum power allowed for the requesting SU
-     * @return maximum of the last SU in the SUs array
+     * @param existingComputeSkip use true when you do not want to recompute existing(PUs and non-requesting SUs)
+     *                            to speedup
+     * @return maximum of the last SU in the SUs array ir provided else -inf
+     * @throws RuntimeException in case of Splat! propagation model
      * @since 1.0*/
-    public double computeSUMAXPower(){
-        computeReceivedPower();
-        this.suMaxPower = computeSUMaxPower(this.sus[this.sus.length - 1]);
-        this.isAllowed = this.sus[this.sus.length - 1].getTx().getPower() <= this.suMaxPower;
-        return this.suMaxPower;
+    public double computeSUMAXPower(boolean existingComputeSkip){
+        if (!existingComputeSkip)
+            computeReceivedPower();
+        if (this.sus != null){
+            this.suMaxPower = computeSUMaxPower(this.sus[this.sus.length - 1]);
+            this.isAllowed = this.sus[this.sus.length - 1].getTx().getPower() <= this.suMaxPower;
+            return this.suMaxPower;
+        }
+        else
+            return Double.NEGATIVE_INFINITY;
     }
 
     /**will be used in case where user provides power for the requesting SU(last one of the array)

@@ -80,6 +80,8 @@ public class SpectrumManager {
     private void computePURsReceivedPower() {
         if (this.pus == null) // if there is no PUs
             return;
+        for (PU pu : this.pus)
+            pu.resetPurs();
         computePURsReceivedPowerFromPUs();
         computePURsReceivedPowerFromSUs();
         
@@ -87,17 +89,16 @@ public class SpectrumManager {
 
     // compute PUR received power from PUs
     private void computePURsReceivedPowerFromPUs() {
-        for (PU pu : this.pus)
-            if (pu.isON()){
-                pu.resetPurs();
-                for (PUR pur : pu.getPurs()){
+        for (PU pu : this.pus){
+            if (pu.isON())
+                for (PUR pur : pu.getPurs()) {
                     // this is done because PUR location information is relative to its PU
                     RX purRX = new RX(new Element(pu.getTx().getElement().getLocation().add(
                             pur.getRx().getElement().getLocation()), pur.getRx().getElement().getHeight()));
                     pur.getRx().setReceived_power(powerWithPathLoss(pu.getTx(), purRX)); // power from its own PU
                     // now calculate power from other PUs(interference)
-                    for (PU npu: this.pus)
-                        if (npu.isON() && npu != pu){
+                    for (PU npu : this.pus)
+                        if (npu.isON() && npu != pu) {
                             double npuPurPathLoss = this.propagationModel.pathLoss(
                                     npu.getTx().getElement().mul(this.cellSize), purRX.getElement().mul(this.cellSize));
                             pur.addInterference(npu.getPuId(), npu.getTx().getPower() - npuPurPathLoss);
@@ -178,7 +179,7 @@ public class SpectrumManager {
         StringBuilder suInformation = new StringBuilder("");
         for (SU su : this.sus)
             suInformation.append(su).append(",");
-        return String.format("%1$d,%2$s%3$d,%4$s%5$s\n", puOnNum, puInformation,
+        return String.format("%1$d,%2$s%3$d,%4$s%5$s", puOnNum, puInformation,
                 this.sus.length, suInformation, this.isAllowed ? "1":"0");
     }
 
@@ -190,12 +191,12 @@ public class SpectrumManager {
         // sensors information
         StringBuilder ssInformation = new StringBuilder(""); // better to use StringBuilder for concatenation
         for (SpectrumSensor spectrumSensor : this.sss)
-            ssInformation.append(String.format("%1$.3f,",spectrumSensor.getRx().getReceived_power()));
+            ssInformation.append(String.format("%1$.3f,", spectrumSensor.getRx().getReceived_power()));
         // sus information
         StringBuilder suInformation = new StringBuilder("");
         for (SU su : this.sus)
             suInformation.append(su).append(",");
-        return String.format("%1$s%2$d,%3$s,%4$s\n", ssInformation,
+        return String.format("%1$s%2$d,%3$s%4$s", ssInformation,
                 this.sus.length, suInformation, this.isAllowed ? "1":"0");
     }
 

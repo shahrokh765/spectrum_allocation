@@ -56,6 +56,20 @@ public class PUR {
         this.irpMap = new HashMap<>();
     }
 
+    /**Copy constructor which takes a PUR object and create a new one*/
+    public PUR(PUR pur){
+        super();
+        this.purIntId = pur.purIntId;
+        this.purId = pur.purId;
+        this.BetaThreshold = pur.BetaThreshold;
+        this.betaThresholdValue = pur.betaThresholdValue;
+        this.rx = new RX(new Element(new Point(pur.rx.getElement().getLocation().getCartesian()),
+                        pur.rx.getElement().getHeight()));
+        this.rx.setReceived_power(Double.NEGATIVE_INFINITY);
+        this.irp = Double.NEGATIVE_INFINITY;
+        this.irpMap = new HashMap<>();
+    }
+
     /**
      * reset all received power values(rp and irp)
      * @since 1.0*/

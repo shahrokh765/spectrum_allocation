@@ -1,5 +1,7 @@
 package edu.stonybrook.cs.wingslab.spectrum_allocation;
 
+import edu.stonybrook.cs.wingslab.commons.Element;
+import edu.stonybrook.cs.wingslab.commons.Point;
 import edu.stonybrook.cs.wingslab.commons.TX;
 
 /**
@@ -29,6 +31,19 @@ public class PU {
         this.tx = tx;
         this.purs = purs;
     }
+    
+    /**Copy constructor that gets a PU object and create a new one with the same values.*/
+    public PU(PU pu){
+        super();
+        this.puId = pu.puId;
+        this.tx = new TX(new Element(new Point(pu.tx.getElement().getLocation().getCartesian()),
+                pu.tx.getElement().getHeight()), pu.tx.getPower());
+        this.purs = new PUR[pu.purs.length];
+        int purId = 0;
+        for (PUR pur : pu.purs)
+            this.purs[purId++] = new PUR(pur);
+
+    }
 
     /**
      * PU constructor when only number of purs along with its transmitter are passed.
@@ -42,7 +57,7 @@ public class PU {
      * @param purHeight maximum pur distance
      * @since 1.0
      * */
-    public PU(TX tx, int purNum,  PUR.InterferenceMethod betaThreshold,
+    public PU(TX tx, int purNum, PUR.InterferenceMethod betaThreshold,
               double betaThresholdValue, double purMinDist, double purMaxDist, double purHeight){
         super();
 //        this.puIntId = puIntId;

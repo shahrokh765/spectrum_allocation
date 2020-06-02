@@ -16,19 +16,21 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
-enum PUType{
-    STATIC,             // pu parameters do not change in this case
-    DYNAMIC             // pu location and power change randomly
-}
+
 /**@author Mohammad Ghaderibaneh <mghaderibane@cs.stonybrook.edu>
- * Application class for spectrum allocation.
+ * Application class for spectrum allocation. This class implements Runnable and should be instantiated as a Threat.
  * This class should be initialized with some parameters and then, some text files, containing sample, would be created
  * based on the given parameters. Files would be accessible from results directory.
+ * You can change the directory using SpectrumAllocationApp.setDataDir method.
  * 1. PU file: contains PUs and SUs information along with if a particular SU request is accepted or not.
  * 2. Sensor file: contains Sensors and SUs information along with if a particular SU request is accepted or not.
  * 3. Power file: contains requesting sesnor information and the power it is allocated to.*/
 public class SpectrumAllocationApp implements Runnable{
-    private static String DATA_DIR = "resources/data";
+    enum PUType{
+        STATIC,             // pu parameters do not change in this case
+        DYNAMIC             // pu location and power change randomly
+    }
+    private static String DATA_DIR = "resources/data/";
     //directory where the results should be written
     private final int sampleCount;
     // number of samples to be created. in case of SPLAT!, it might be less due to exceptions
@@ -37,7 +39,7 @@ public class SpectrumAllocationApp implements Runnable{
     // will be used when there are multiple threads to write some useful information if a hash dictionary is given
     private final String fileAppendix;
     // will be used to save results; user might need it to merge multiple thread outputs
-    private ConcurrentHashMap<Integer, HashMap<String, Double>> resultDict;
+    private static ConcurrentHashMap<Integer, HashMap<String, Double>> resultDict;
     // some statistics will be written in this dictionary
     private final PropagationModel propagationModel;
     // propagation model that will be used
@@ -67,23 +69,42 @@ public class SpectrumAllocationApp implements Runnable{
     // minimum power value(dB) an PU can get
     private final double maxPuPower;
     // minimum power value(dB) an PU can get
-    private final double noiseFloor;
+    //private final double noiseFloor;
     // noise floor level (dB)
     private final PUType puType;
     // progress bar length
     private final static int progressBarLength = 50;
-
+    /**
+     * SpectrumAllocationApp constructor
+     * @param sampleCount number of sample to be generated
+     * @param fileAppendix an appendix that will be added to results file if provided
+     * @param resultDict a hashMap that will be used to write statistics
+     * @param propagationModel propagation model
+     * @param pus array of PUs
+     * @param sss array of SpectrumSensors
+     * @param shape shape of the target region
+     * @param cellSize size of square cells
+     * @param minSuNum minimum number of SUs for each sample
+     * @param maxSuNum maximum number of SUs for each sample
+     * @param minSuPower minimum power value of SUs for each sample
+     * @param maxSuPower maximum power value of SUs for each sample
+     * @param suHeight height of SUs
+     * @param minPuNum minimum number of PUs for each sample
+     * @param maxPuNum maximum number of PUs for each sample
+     * @param minPuPower minimum power value of SUs for each sample
+     * @param maxPuPower maximum power value of SUs for each sample
+     * @param puType if PUs are static or dynamic*/
     public SpectrumAllocationApp(int sampleCount, String fileAppendix,
                                  ConcurrentHashMap<Integer, HashMap<String, Double>> resultDict,
                                  PropagationModel propagationModel, PU[] pus, SpectrumSensor[] sss, Shape shape,
                                  int cellSize, int minSuNum, int maxSuNum, double minSuPower, double maxSuPower,
                                  double suHeight, int minPuNum, int maxPuNum, double minPuPower, double maxPuPower,
-                                 double noiseFloor, PUType puType) {
+                                 PUType puType) {
         super();
         this.sampleCount = sampleCount;
         this.threadId = SpectrumAllocationApp.threadNum++;
         this.fileAppendix = fileAppendix;
-        this.resultDict = resultDict;
+        SpectrumAllocationApp.resultDict = resultDict;
         this.propagationModel = propagationModel;
         this.pus = pus;
         this.sss = sss;
@@ -98,7 +119,7 @@ public class SpectrumAllocationApp implements Runnable{
         this.maxPuNum = maxPuNum;
         this.minPuPower = minPuPower;
         this.maxPuPower = maxPuPower;
-        this.noiseFloor = noiseFloor;
+        //this.noiseFloor = noiseFloor;
         this.puType = puType;
 
         //creating files and directory(if needed)
@@ -128,8 +149,8 @@ public class SpectrumAllocationApp implements Runnable{
     @Override
     public void run() {
         int acceptedNum = 0;            // number of accepted su request
-        String fileNameFormat = String.format("_%1$s_%2$d.txt", fileAppendix, this.threadId);
-        // this format would be added to file anme
+        String fileNameFormat = String.format("_%1$s_%2$d.txt", fileAppendix != null ? fileAppendix : "", this.threadId);
+        // this format would be added to file name
         File puFile = new File(SpectrumAllocationApp.DATA_DIR + "/pu" + fileNameFormat);  // pu file
         File ssFile = new File(SpectrumAllocationApp.DATA_DIR + "/sensor" + fileNameFormat); // sensor
         File maxFile = new File(SpectrumAllocationApp.DATA_DIR + "/max" + fileNameFormat);  // max power values
@@ -144,15 +165,13 @@ public class SpectrumAllocationApp implements Runnable{
 
             if(this.puType == PUType.STATIC && this.minSuNum == this.maxSuNum && this.minSuNum == 1)
                 sm.computeSUMAXPower(false);
-            // in case of STATIC PUs and when there is only one requesting, we just want to compute PUs power
-            // only once to speedup
+                // in case of STATIC PUs and when there is only one requesting, we just want to compute PUs power
+                // only once to speedup
+            long beginTime = System.currentTimeMillis();
             for (int sample = 1; sample < this.sampleCount + 1; sample++){
                 sm.setSus(createSUs());
-                int pusNum;  // used fpr serialization
                 if (puType == PUType.DYNAMIC)
-                    pusNum = this.createActivePU(); // create(it's not real creating) new active PUs
-                else
-                    pusNum = this.pus.length;
+                    this.createActivePU(); // create(it's not actual creating) new active PUs
                 try{
                     sm.computeSUMAXPower(this.puType == PUType.STATIC &&
                             this.minSuNum == this.maxSuNum && this.minSuNum == 1);
@@ -166,12 +185,14 @@ public class SpectrumAllocationApp implements Runnable{
                 puWriter.println(sm.pusSample());
                 ssWriter.println(sm.sssSample());
                 maxWriter.println(sm.maxPowerSample());
+                System.out.print(progressBar(sample, System.currentTimeMillis() - beginTime));
             }
         }
         catch(FileNotFoundException e){
             e.printStackTrace();
             throw new RuntimeException(this.getClass().getSimpleName() + "Failed opening proper files");
         }
+        System.out.println("");
         HashMap<String, Double> threadInfo = new HashMap<>();
         threadInfo.put("Accepted Number", (double) acceptedNum);
         if (this.propagationModel instanceof Splat splat){
@@ -181,15 +202,15 @@ public class SpectrumAllocationApp implements Runnable{
             threadInfo.put("Execution Number", (double) splat.getExecNum());
             threadInfo.put("Execution Time", splat.getExecTime());
         }
-        this.resultDict.put(this.threadId, threadInfo);
+        SpectrumAllocationApp.resultDict.put(this.threadId, threadInfo);
 
     }
 
-    private int createActivePU(){
+    // in case DYNAMIC pus, new set of PU will be active and random power and location will be generated
+    private void createActivePU(){
         ArrayList<Integer> allPusIdx = new ArrayList<>();
         int numPus = ThreadLocalRandom.current().nextInt(minPuNum, maxPuNum + 1);
         Point[] puPoints = this.shape.points(numPus);
-        int[] activePusIdx = new int[numPus];
         for (int i = 0; i < this.pus.length; i++) {
             this.pus[i].setON(false); // disabling all
             allPusIdx.add(i);
@@ -201,7 +222,6 @@ public class SpectrumAllocationApp implements Runnable{
             this.pus[allPusIdx.get(i)].getTx().setPower(ThreadLocalRandom.current().nextDouble(
                     this.minPuPower, this.maxPuPower + Double.MIN_VALUE));
         }
-        return numPus;
     }
 
     // creating random sus
@@ -219,12 +239,11 @@ public class SpectrumAllocationApp implements Runnable{
 
     // method to return Progress Bar based on sample #
     private String progressBar(int sampleNumber, long timeElapsedMilli){
-        StringBuilder out = new StringBuilder("");
         int progress = (int)((float)sampleNumber/this.sampleCount * progressBarLength);  // number of = to be print
-        out.append("=".repeat(Math.max(0, progress)));
-        out.append(" ".repeat(Math.max(0, SpectrumAllocationApp.progressBarLength - progress)));
-        out.append(timeFormat(sampleNumber, timeElapsedMilli)).append("\r");
-        return out.toString();
+        return "=".repeat(Math.max(0, progress)) +
+                " ".repeat(Math.max(0, SpectrumAllocationApp.progressBarLength - progress)) +
+                "| " + (int)((double)sampleNumber / this.sampleCount * 100) + "% " +
+                timeFormat(sampleNumber, timeElapsedMilli) + "\r";
     }
 
     // based on elapsed time and sample number, a time format info will be returned
@@ -232,14 +251,27 @@ public class SpectrumAllocationApp implements Runnable{
         int sampleRemaining = this.sampleCount - sampleNumber;  // remaining samples
         long timeRemainingMilli = (long)(((double) sampleRemaining / sampleNumber) * timeElapseMilli); // remaining time
         String extraInfo = (double)timeElapseMilli / (1000 * sampleNumber) > 1.0 ?
-                (double)timeElapseMilli / (1000 * sampleNumber) + "s/it " :   // seconds per iteration
-                (double)(1000 * sampleNumber) / timeElapseMilli + "it/s";    // iteration per seconds
+                String.format("%.2fs/it", (double)timeElapseMilli / (1000 * sampleNumber)) :   // seconds per iteration
+                String.format("%.2fit/s", (double)(1000 * sampleNumber) / timeElapseMilli);    // iteration per seconds
         return String.format("(%s / %s), %s", timeFormat(timeElapseMilli),
                 timeFormat(timeRemainingMilli), extraInfo);
     }
+
+    // return time format (HH:mm:ss) for a milliseconds input
     private String timeFormat(long millis){
-        return String.format("%02d:%02d:%02d", TimeUnit.MILLISECONDS.toHours(millis),
+        return String.format("%d:%02d:%02d", TimeUnit.MILLISECONDS.toHours(millis),
                 TimeUnit.MILLISECONDS.toMinutes(millis) % TimeUnit.HOURS.toMinutes(1),
                 TimeUnit.MILLISECONDS.toSeconds(millis) % TimeUnit.MINUTES.toSeconds(1));
+    }
+
+    // **************************** Setter & Getter ******************************
+    public static String getDataDir() { return DATA_DIR; }
+
+    public static void setDataDir(String dataDir) { DATA_DIR = dataDir; }
+
+    public static ConcurrentHashMap<Integer, HashMap<String, Double>> getResultDict() { return resultDict; }
+
+    public static void setResultDict(ConcurrentHashMap<Integer, HashMap<String, Double>> resultDict) {
+        SpectrumAllocationApp.resultDict = resultDict;
     }
 }

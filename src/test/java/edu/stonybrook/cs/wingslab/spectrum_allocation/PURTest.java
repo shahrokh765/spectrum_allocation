@@ -11,7 +11,7 @@ import org.junit.Test;
 public class PURTest extends TestCase {
 
     @Test
-    void reset() {
+    public void reset() {
         PUR pur1 = new PUR("PU10", 2, new RX(new Element(new Point(10, 5), 15)),
                 PUR.InterferenceMethod.THRESHOLD, 1.2);
         pur1.addInterference("PU10", -5);
@@ -21,7 +21,7 @@ public class PURTest extends TestCase {
     }
 
     @Test
-    void getInterferencePowerFrom() {
+    public void getInterferencePowerFrom() {
         PUR pur1 = new PUR("PU10", 2, new RX(new Element(new Point(10, 5), 15)),
                 PUR.InterferenceMethod.THRESHOLD, 1.2);
         pur1.addInterference("PU10", -5);
@@ -30,7 +30,7 @@ public class PURTest extends TestCase {
     }
 
     @Test
-    void addInterference() {
+    public void addInterference() {
         PUR pur1 = new PUR("PU10", 2, new RX(new Element(new Point(10, 5), 15)),
                 PUR.InterferenceMethod.THRESHOLD, 1.2);
         pur1.addInterference("PU10", -5);
@@ -39,7 +39,7 @@ public class PURTest extends TestCase {
     }
 
     @Test
-    void updateInterference() {
+    public void updateInterference() {
         PUR pur1 = new PUR("PU10", 2, new RX(new Element(new Point(10, 5), 15)),
                 PUR.InterferenceMethod.THRESHOLD, 1.2);
         pur1.addInterference("PU10", -5);
@@ -50,7 +50,7 @@ public class PURTest extends TestCase {
     }
 
     @Test
-    void deleteInterferencePowerFrom() {
+    public void deleteInterferencePowerFrom() {
         PUR pur1 = new PUR("PU10", 2, new RX(new Element(new Point(10, 5), 15)),
                 PUR.InterferenceMethod.THRESHOLD, 1.2);
         pur1.addInterference("PU10", -5);
@@ -60,7 +60,7 @@ public class PURTest extends TestCase {
     }
 
     @Test
-    void getInterferenceCapacity() {
+    public void getInterferenceCapacity() {
         PUR pur1 = new PUR("PU10", 2, new RX(new Element(new Point(10, 5), 15)),
                 PUR.InterferenceMethod.BETA, 1.2);
         pur1.getRx().setReceived_power(0);
@@ -71,7 +71,7 @@ public class PURTest extends TestCase {
     }
 
     @Test
-    void testToString() {
+    public void testToString() {
         PUR pur1 = new PUR("PU10", 2, new RX(new Element(new Point(new PolarPoint(10, 0.5)), 15)),
                 PUR.InterferenceMethod.THRESHOLD, 1.2);
         pur1.getRx().setReceived_power(0.5);
@@ -84,7 +84,7 @@ public class PURTest extends TestCase {
     }
 
     @Test
-    void setRx() {
+    public void setRx() {
         PUR pur1 = new PUR("PU10", 2, new RX(new Element(new Point(new PolarPoint(10, 0.5)), 15)),
                 PUR.InterferenceMethod.THRESHOLD, 1.2);
         System.out.println(pur1.getRx());
@@ -94,7 +94,7 @@ public class PURTest extends TestCase {
     }
 
     @Test
-    void getBetaThreshold() {
+    public void getBetaThreshold() {
         PUR pur1 = new PUR("PU10", 2, new RX(new Element(new Point(new PolarPoint(10, 0.5)), 15)),
                 PUR.InterferenceMethod.THRESHOLD, 1.2);
         Assert.assertTrue(pur1.getBetaThreshold() == PUR.InterferenceMethod.THRESHOLD);
@@ -104,7 +104,7 @@ public class PURTest extends TestCase {
     }
 
     @Test
-    void getBetaThresholdValue() {
+    public void getBetaThresholdValue() {
         PUR pur1 = new PUR("PU10", 2, new RX(new Element(new Point(new PolarPoint(10, 0.5)), 15)),
                 PUR.InterferenceMethod.THRESHOLD, 1.2);
         Assert.assertTrue(pur1.getBetaThresholdValue() == 1.2);
@@ -114,7 +114,7 @@ public class PURTest extends TestCase {
     }
 
     @Test
-    void getInterferencePower() {
+    public void getInterferencePower() {
         PUR pur1 = new PUR("PU10", 2, new RX(new Element(new Point(10, 5), 15)),
                 PUR.InterferenceMethod.THRESHOLD, 1.2);
         pur1.addInterference("PU10", -5);
@@ -122,11 +122,22 @@ public class PURTest extends TestCase {
     }
 
     @Test
-    void createPURs() {
+    public void createPURs() {
         java.awt.Point point = new java.awt.Point();
         PUR[] purs = PUR.createPURs("PU10", 100, PUR.InterferenceMethod.BETA,
                 1.5,5, 10,  15.0);
         for (PUR pur : purs)
             System.out.println(pur);
+    }
+
+    @Test
+    public void testCopyConstructor(){
+        PUR pur1 = new PUR("PU10", 2, new RX(new Element(new Point(10, 5), 15)),
+                PUR.InterferenceMethod.THRESHOLD, 1.2);
+        PUR pur2 = new PUR(pur1);
+        Assert.assertNotSame(pur1, pur2);
+        Assert.assertNotSame(pur1.getRx(), pur2.getRx());
+        System.out.println(pur1);
+        System.out.println(pur2);
     }
 }

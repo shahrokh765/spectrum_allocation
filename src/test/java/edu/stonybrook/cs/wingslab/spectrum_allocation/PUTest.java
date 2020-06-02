@@ -4,12 +4,13 @@ import edu.stonybrook.cs.wingslab.commons.Element;
 import edu.stonybrook.cs.wingslab.commons.Point;
 import edu.stonybrook.cs.wingslab.commons.TX;
 import junit.framework.TestCase;
+import org.junit.Assert;
 import org.junit.Test;
 
-public class PUTest extends TestCase {
+public class PUTest {
 
     @Test
-    void resetPurs() {
+    public void resetPurs() {
         PU pu1 = new PU(new TX(new Element(new Point(5, 6), 14), -5.5), 10,
                 PUR.InterferenceMethod.BETA, 2.0, 5, 10, 10);
         System.out.println(pu1);
@@ -27,4 +28,22 @@ public class PUTest extends TestCase {
     public void testToString() {
         System.out.println(Double.NEGATIVE_INFINITY);
     }
+
+    @Test
+    public void testCopyConstructor(){
+        PU pu1 = new PU(new TX(new Element(new Point(5, 6), 14), -5.5), 10,
+                PUR.InterferenceMethod.BETA, 2.0, 5, 10, 10);
+        PU pu2 = new PU(pu1);
+        Assert.assertNotSame(pu1, pu2);
+        Assert.assertNotSame(pu1.getTx(), pu2.getTx());
+        Assert.assertNotSame(pu1.getTx().getElement(), pu2.getTx().getElement());
+        Assert.assertNotSame(pu1.getTx().getElement().getLocation(), pu2.getTx().getElement().getLocation());
+        for (int i = 0; i < pu1.getPurs().length; i++) {
+            Assert.assertNotSame(pu1.getPurs()[i], pu2.getPurs()[i]);
+            Assert.assertEquals(pu1.getPurs()[i].getPurId(), pu2.getPurs()[i].getPurId());
+        }
+        System.out.println(pu1);
+        System.out.println(pu2);
+    }
+
 }

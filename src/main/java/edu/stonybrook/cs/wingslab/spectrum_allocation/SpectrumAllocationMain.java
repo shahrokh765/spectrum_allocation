@@ -23,19 +23,19 @@ public class SpectrumAllocationMain {
     public static void main(String... args) throws InterruptedException {
         // **********************************   PATHS   ****************************************
         String TMP_DIR = "resources/tmp/";
-        String SPLAT_DIR = "resources/splat/";
+        String SPLAT_DIR = "../commons/resources/splat/";
         String SENSOR_PATH = "../commons/resources/sensors/";
         //String DATA_PATH = "resources/data";
 
         // ********************************** Field Parameters **********************************
         double tx_height = 30;                          // in meter
         double rx_height =  15;                         // in meter
-        Shape field_shape = new Square(1000);       // Square and Rectangle are supported for now.
-                                                        // in meter and originated in (0, 0)
-        int cell_size = 1;                               // in meter
+        Shape field_shape = new Square(100);       // Square and Rectangle are supported for now.
+                                                        // in meter and originated in (0, 0). 1000 for log, 100 for splat
+        int cell_size = 10;                               // in meter
 
         // ********************************** Propagation Model **********************************
-        String propagationModel = "log";                // 'splat' or 'log'
+        String propagationModel = "splat";                // 'splat' or 'log'
         double alpha = 3;                               // propagation model coeff.  2.0 for 4km, 3 for 1km, 4.9 for 200m.
                                                         // Applicable for log
         boolean noise = true;                           // std in dB.
@@ -43,7 +43,7 @@ public class SpectrumAllocationMain {
         GeographicPoint splat_left_upper_ref = new GeographicPoint(40.800595,
                 73.107507);                         // ISLIP lat and lon
         double noise_floor = -90;                       // noise floor
-        String splatFileName = "pl_dict.sr";            // splat saved file name
+        String splatFileName = "pl_map.json";            // splat saved file name
         //SharedDictionary = False  # means pl_map is shared among sub process or not. Applicatble for Splat
 
         // ********************************** PUs&PURs **********************************
@@ -56,31 +56,31 @@ public class SpectrumAllocationMain {
                                                         // min=max means # of pus doesn't change
         double min_pu_power = -30.0;
         double max_pu_power = 0.0;                      // in dB. PU's power do not change for static PUs case
-        int pur_number = 10;                            // number of purs each pu can have 10 for log, 5 for splat
+        int pur_number = 5;                            // number of purs each pu can have 10 for log, 5 for splat
         PUR.InterferenceMethod pur_metric =
                 PUR.InterferenceMethod.BETA;            // BETA and THRESHOLD
-        double pur_metric_value = 1.0;                  // beta: 0.05 for splat and 1 for log, threshold(power in dB)
+        double pur_metric_value = 0.05;                  // beta: 0.05 for splat and 1 for log, threshold(power in dB)
         double min_pur_dist = 1.0;                      // * cell_size, min_distance from each pur to its pu
-        double max_pur_dist = 3.0;                      // * cell_size, max_distance from each pur to its pu
+        double max_pur_dist = 2.0;                      // * cell_size, max_distance from each pur to its pu
 
         // ********************************** SUs **********************************
         int min_sus_number = 1;
-        int max_sus_number = 4;                         // min(max) number of sus; i.e. # of sus is different for each sample.
+        int max_sus_number = 1;                         // min(max) number of sus; i.e. # of sus is different for each sample.
         double min_su_power = min_pu_power - 5;         // used for binary case
         double max_su_power = max_pu_power + 55;        // used for binary case
 
         // ********************************** SSs **********************************
-        int number_sensors = 1600;
+        int number_sensors = 400;
 
         // ********************************** General **********************************
         // MAX_POWER = True   # make it true if you want to achieve the highest power su can have without interference.
         // calculation for conservative model would also be done
-        int number_of_process = 5;                      // number of process
+        int number_of_process = 14;                      // number of process
         //INTERPOLATION, CONSERVATIVE = False, False
-        int n_samples = 10000;                            // number of samples
+        int n_samples = 50000;                            // number of samples
 
         long beginTime = System.currentTimeMillis();
-        String sensorPath = String.format("%s/%s/%d/sensors.txt", SENSOR_PATH, field_shape.toString(),
+        String sensorPath = String.format("%s%s/%d/sensors.txt", SENSOR_PATH, field_shape.toString(),
                 number_sensors);
 
         // create proper propagation model
@@ -92,7 +92,8 @@ public class SpectrumAllocationMain {
                 pm = new LogDistancePM(alpha);
         else if (propagationModel.equals("splat")) {
             pm = new Splat(splat_left_upper_ref);
-            Splat.deserializePlDict(SPLAT_DIR + "/pl_map", splatFileName);
+            Splat.readPlDictFromJson(SPLAT_DIR + "pl_map/" + splatFileName);
+            Splat.setSdfDir(SPLAT_DIR + "sdf/");
         }
 
         // creating sensors
@@ -129,8 +130,24 @@ public class SpectrumAllocationMain {
             SpectrumSensor[] threadCopySss = new SpectrumSensor[sss.length];
             for (int ssId = 0; ssId < sss.length; ssId++)
                 threadCopySss[ssId] = new SpectrumSensor(sss[ssId]);
+
+            PropagationModel threadPM;
+            if (pm instanceof LogDistancePM logDistancePM)
+                threadPM = new LogDistancePM(logDistancePM);
+            else if (pm instanceof Splat splat)
+                threadPM = new Splat(splat);
+            else
+                throw new IllegalArgumentException("Constructor is not valid.");
+
+            Shape threadShape;
+            if (field_shape instanceof Rectangle rectangle)
+                threadShape = new Rectangle(rectangle);
+            else if (field_shape instanceof Square square)
+                threadShape = new Square(square);
+            else
+                throw new IllegalArgumentException("Shape is not valid.");
             threads[i] = new Thread(new SpectrumAllocationApp(threadSampleNum[i], Integer.toString(fileAppendix),
-                    resultDict, pm, threadCopyPUs, threadCopySss, field_shape, cell_size,
+                    resultDict, threadPM, threadCopyPUs, threadCopySss, threadShape, cell_size,
                     min_sus_number, max_sus_number, min_su_power, max_su_power, tx_height,
                     min_pus_number, max_pus_number, min_pu_power, max_pu_power, puType));
             threads[i].start();
@@ -174,8 +191,8 @@ public class SpectrumAllocationMain {
         if (propagationModel.contains("splat")){
             int fetchNum = 0;           // number of using hash map
             int execNum = 0;            // number of executing splat command line
-            long fetchTime = 0;          // duration(seconds) of fetching
-            long execTime = 0;           // duration(seconds) of executing
+            long fetchTime = 0;          // duration(milliseconds) of fetching
+            long execTime = 0;           // duration(milliseconds) of executing
             for (HashMap<String, Double> threadInfo : resultDict.values()) {
                 if (threadInfo.containsKey("Fetch Number"))
                     fetchNum += threadInfo.get("Fetch Number").intValue();
@@ -186,12 +203,12 @@ public class SpectrumAllocationMain {
                 if (threadInfo.containsKey("Execution Time"))
                     execTime += threadInfo.get("Execution Time").longValue();
             }
-            System.out.println(String.format("Fetching: %d times (%ds per each)\n" +
-                    "Execution Time: %d times (%ds per each",
-                    fetchNum, fetchTime / fetchNum, execNum, execTime / execNum));
+            System.out.println(String.format("Fetching: %d times (%fms per each)\n" +
+                    "Execution Time: %d times (%.2fms per each)",
+                    fetchNum, (double) fetchTime / fetchNum, execNum, (double) execTime / execNum));
 
             // saving new pl map
-            Splat.serializePlDict(SPLAT_DIR + "pl_map", "new_pl_map.sr");
+            Splat.writePlDictToJson(SPLAT_DIR + "pl_map/" + "pl_map.json.new");
         }
         long duration = System.currentTimeMillis() - beginTime;
         System.out.println(String.format("Duration = %d:%02d:%02d", TimeUnit.MILLISECONDS.toHours(duration),

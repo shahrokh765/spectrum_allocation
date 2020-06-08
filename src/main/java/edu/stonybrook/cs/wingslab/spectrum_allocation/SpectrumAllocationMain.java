@@ -43,7 +43,7 @@ public class SpectrumAllocationMain {
         GeographicPoint splat_left_upper_ref = new GeographicPoint(40.800595,
                 73.107507);                         // ISLIP lat and lon
         double noise_floor = -90;                       // noise floor
-        String splatFileName = "pl_map.json";            // splat saved file name
+        String splatFileName = "pl_map_array.json";            // splat saved file name
         //SharedDictionary = False  # means pl_map is shared among sub process or not. Applicatble for Splat
 
         // ********************************** PUs&PURs **********************************
@@ -208,7 +208,7 @@ public class SpectrumAllocationMain {
                     fetchNum, (double) fetchTime / fetchNum, execNum, (double) execTime / execNum));
 
             // saving new pl map
-            Splat.writePlDictToJson(SPLAT_DIR + "pl_map/" + "pl_map.json.new");
+            Splat.writePlDictToJson(SPLAT_DIR + "pl_map/" + splatFileName + ".new");
         }
         long duration = System.currentTimeMillis() - beginTime;
         System.out.println(String.format("Duration = %d:%02d:%02d", TimeUnit.MILLISECONDS.toHours(duration),

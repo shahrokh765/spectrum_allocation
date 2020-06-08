@@ -198,9 +198,9 @@ public class SpectrumAllocationApp implements Runnable{
         if (this.propagationModel instanceof Splat splat){
 
             threadInfo.put("Fetch Number", (double) splat.getFetchNum());
-            threadInfo.put("Fetch Time", splat.getFetchTime());
+            threadInfo.put("Fetch Time", (double) splat.getFetchTime());
             threadInfo.put("Execution Number", (double) splat.getExecNum());
-            threadInfo.put("Execution Time", splat.getExecTime());
+            threadInfo.put("Execution Time", (double) splat.getExecTime());
         }
         SpectrumAllocationApp.resultDict.put(this.threadId, threadInfo);
 

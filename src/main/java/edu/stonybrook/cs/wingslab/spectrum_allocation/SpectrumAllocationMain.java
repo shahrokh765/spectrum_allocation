@@ -65,7 +65,7 @@ public class SpectrumAllocationMain {
 
         // ********************************** SUs **********************************
         int min_sus_number = 1;
-        int max_sus_number = 1;                         // min(max) number of sus; i.e. # of sus is different for each sample.
+        int max_sus_number = 4;                         // min(max) number of sus; i.e. # of sus is different for each sample.
         double min_su_power = min_pu_power - 5;         // used for binary case
         double max_su_power = max_pu_power + 55;        // used for binary case
 
@@ -77,7 +77,7 @@ public class SpectrumAllocationMain {
         // calculation for conservative model would also be done
         int number_of_process = 8;                      // number of process
         //INTERPOLATION, CONSERVATIVE = False, False
-        int n_samples = 20000;                            // number of samples
+        int n_samples = 50000;                            // number of samples
 
         long beginTime = System.currentTimeMillis();
         String sensorPath = String.format("%s%s/%d/sensors.txt", SENSOR_PATH, field_shape.toString(),
@@ -173,12 +173,18 @@ public class SpectrumAllocationMain {
                 + date + ".txt";
         mergeFiles(SpectrumAllocationApp.getDataDir(), "pu_" + fileAppendix, // merging pu related files
                 SpectrumAllocationApp.getDataDir(), "dynamic_pus_using_pus_" + output_format);
+        System.out.println("File " + "dynamic_pus_using_pus_" + output_format + " saved at: " +
+                SpectrumAllocationApp.getDataDir());
 
         mergeFiles(SpectrumAllocationApp.getDataDir(), "max_" + fileAppendix, // merging max information
                 SpectrumAllocationApp.getDataDir(), "dynamic_pus_max_power_" + output_format);
+        System.out.println("File " + "dynamic_pus_max_power_" + output_format + " saved at: " +
+                SpectrumAllocationApp.getDataDir());
 
         mergeFiles(SpectrumAllocationApp.getDataDir(), "sensor_" + fileAppendix,  // merging sensor related files
-                SpectrumAllocationApp.getDataDir(), "dynamic_pus_sensor_" + output_format);
+                SpectrumAllocationApp.getDataDir(), "dynamic_pus_" + number_sensors + "sensor_" + output_format);
+        System.out.println("File " + "dynamic_pus_" + number_sensors + "sensor_" + output_format + " saved at: " +
+                SpectrumAllocationApp.getDataDir());
 
         // displaying statistics
         int numSampleAccepted = 0;

@@ -175,12 +175,21 @@ public class SpectrumManager {
                 puOnNum++;
                 puInformation.append(pu).append(",");
             }
+        return String.format("%1$d,%2$s%3$d,%4$s,%5$s", puOnNum, puInformation,
+                this.sus.length, susInformation(), this.isAllowed ? "1":"0");
+    }
+
+    /**
+     * Generate information about Spectrum Sensors and SUs in format of "#Sensor1_power,Sensor2_power...#SUs,SU1Location..."
+     * @return a string consist of SSs' and SUs' information
+     * @since 1.0*/
+    public String susInformation(){
         // sus information
         StringBuilder suInformation = new StringBuilder("");
-        for (SU su : this.sus)
-            suInformation.append(su).append(",");
-        return String.format("%1$d,%2$s%3$d,%4$s%5$s", puOnNum, puInformation,
-                this.sus.length, suInformation, this.isAllowed ? "1":"0");
+        for (int su = 0; su < this.sus.length - 1; su++)
+            suInformation.append(this.sus[su]).append(",");
+        suInformation.append(this.sus[this.sus.length - 1]);
+        return suInformation.toString();
     }
 
     /**
@@ -192,12 +201,8 @@ public class SpectrumManager {
         StringBuilder ssInformation = new StringBuilder(""); // better to use StringBuilder for concatenation
         for (SpectrumSensor spectrumSensor : this.sss)
             ssInformation.append(String.format("%1$.3f,", spectrumSensor.getRx().getReceived_power()));
-        // sus information
-        StringBuilder suInformation = new StringBuilder("");
-        for (SU su : this.sus)
-            suInformation.append(su).append(",");
-        return String.format("%1$s%2$d,%3$s%4$s", ssInformation,
-                this.sus.length, suInformation, this.isAllowed ? "1":"0");
+        return String.format("%1$s%2$d,%3$s,%4$s", ssInformation,
+                this.sus.length, susInformation(), this.isAllowed ? "1":"0");
     }
 
     /**

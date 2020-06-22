@@ -74,6 +74,79 @@ public class SpectrumAllocationApp implements Runnable{
     private final PUType puType;
     // progress bar length
     private final static int progressBarLength = 50;
+    // sensors' list to be interpolated
+    private final SpectrumSensor[] interSss;
+    // number of sensors to use for interpolation
+    private final int numberOfInterpolatedSensor;
+    // interpolation type {LOG, LINEAR}
+    private final InterpolatedSpectrumSensor.InterpolationType interpolationType;
+
+    /**
+     * SpectrumAllocationApp constructor. Support interpolation.
+     * @param sampleCount number of sample to be generated
+     * @param fileAppendix an appendix that will be added to results file if provided
+     * @param resultDict a hashMap that will be used to write statistics
+     * @param propagationModel propagation model
+     * @param pus array of PUs
+     * @param sss array of SpectrumSensors
+     * @param shape shape of the target region
+     * @param cellSize size of square cells
+     * @param minSuNum minimum number of SUs for each sample
+     * @param maxSuNum maximum number of SUs for each sample
+     * @param minSuPower minimum power value of SUs for each sample
+     * @param maxSuPower maximum power value of SUs for each sample
+     * @param suHeight height of SUs
+     * @param minPuNum minimum number of PUs for each sample
+     * @param maxPuNum maximum number of PUs for each sample
+     * @param minPuPower minimum power value of SUs for each sample
+     * @param maxPuPower maximum power value of SUs for each sample
+     * @param puType if PUs are static or dynamic
+     * @param interSss list of sensors to be interpolated
+     * @param numberOfInterpolatedSensor number of known sensors to be selected
+     * @param interpolationType interpolation type*/
+    public SpectrumAllocationApp(int sampleCount, String fileAppendix,
+                                  ConcurrentHashMap<Integer, HashMap<String, Double>> resultDict,
+                                  PropagationModel propagationModel, PU[] pus, SpectrumSensor[] sss, Shape shape,
+                                  int cellSize, int minSuNum, int maxSuNum, double minSuPower, double maxSuPower,
+                                  double suHeight, int minPuNum, int maxPuNum, double minPuPower, double maxPuPower,
+                                  PUType puType, SpectrumSensor[] interSss, int numberOfInterpolatedSensor,
+                                  InterpolatedSpectrumSensor.InterpolationType interpolationType){
+        super();
+        this.sampleCount = sampleCount;
+        this.threadId = SpectrumAllocationApp.threadNum++;
+        this.fileAppendix = fileAppendix;
+        SpectrumAllocationApp.resultDict = resultDict;
+        this.propagationModel = propagationModel;
+        this.pus = pus;
+        this.sss = sss;
+        this.shape = shape;
+        this.cellSize = cellSize;
+        this.minSuNum = minSuNum;
+        this.maxSuNum = maxSuNum;
+        this.minSuPower = minSuPower;
+        this.maxSuPower = maxSuPower;
+        this.suHeight = suHeight;
+        this.minPuNum = minPuNum;
+        this.maxPuNum = maxPuNum;
+        this.minPuPower = minPuPower;
+        this.maxPuPower = maxPuPower;
+        //this.noiseFloor = noiseFloor;
+        this.puType = puType;
+        this.interSss = interSss;
+        this.interpolationType = interpolationType;
+        this.numberOfInterpolatedSensor = numberOfInterpolatedSensor;
+
+        //creating files and directory(if needed)
+        Path dataPath = Paths.get(SpectrumAllocationApp.DATA_DIR);
+        if (!Files.isDirectory(dataPath)){
+            try {
+                Files.createDirectories(dataPath);
+            } catch (IOException e) {
+                e.printStackTrace();
+                throw new RuntimeException(this.getClass().getSimpleName() + " can't create proper directory!");
+            }
+        }
+    }
     /**
      * SpectrumAllocationApp constructor
      * @param sampleCount number of sample to be generated
@@ -100,38 +173,9 @@ public class SpectrumAllocationApp implements Runnable{
                                  int cellSize, int minSuNum, int maxSuNum, double minSuPower, double maxSuPower,
                                  double suHeight, int minPuNum, int maxPuNum, double minPuPower, double maxPuPower,
                                  PUType puType) {
-        super();
-        this.sampleCount = sampleCount;
-        this.threadId = SpectrumAllocationApp.threadNum++;
-        this.fileAppendix = fileAppendix;
-        SpectrumAllocationApp.resultDict = resultDict;
-        this.propagationModel = propagationModel;
-        this.pus = pus;
-        this.sss = sss;
-        this.shape = shape;
-        this.cellSize = cellSize;
-        this.minSuNum = minSuNum;
-        this.maxSuNum = maxSuNum;
-        this.minSuPower = minSuPower;
-        this.maxSuPower = maxSuPower;
-        this.suHeight = suHeight;
-        this.minPuNum = minPuNum;
-        this.maxPuNum = maxPuNum;
-        this.minPuPower = minPuPower;
-        this.maxPuPower = maxPuPower;
-        //this.noiseFloor = noiseFloor;
-        this.puType = puType;
-
-        //creating files and directory(if needed)
-        Path dataPath = Paths.get(SpectrumAllocationApp.DATA_DIR);
-        if (!Files.isDirectory(dataPath)){
-            try {
-                Files.createDirectories(dataPath);
-            } catch (IOException e) {
-                e.printStackTrace();
-                throw new RuntimeException(this.getClass().getSimpleName() + " can't create proper directory!");
-            }
-        }
+        this(sampleCount, fileAppendix, resultDict, propagationModel, pus, sss, shape, cellSize, minSuNum,
+                maxSuNum, minSuPower,  maxSuPower, suHeight, minPuNum, maxPuNum, minPuPower, maxPuPower, puType,
+                null, 0, null);
     }
 
 
@@ -154,11 +198,14 @@ public class SpectrumAllocationApp implements Runnable{
         File puFile = new File(SpectrumAllocationApp.DATA_DIR + "/pu" + fileNameFormat);  // pu file
         File ssFile = new File(SpectrumAllocationApp.DATA_DIR + "/sensor" + fileNameFormat); // sensor
         File maxFile = new File(SpectrumAllocationApp.DATA_DIR + "/max" + fileNameFormat);  // max power values
+        File interFile = new File(SpectrumAllocationApp.DATA_DIR + "/interSensor" +
+                fileNameFormat);  // max power values
 
         // opening files
         try(PrintWriter puWriter = new PrintWriter(puFile);
                 PrintWriter ssWriter = new PrintWriter(ssFile);
-                PrintWriter maxWriter = new PrintWriter(maxFile)){
+                PrintWriter maxWriter = new PrintWriter(maxFile);
+                PrintWriter interWriter = (this.interSss == null ? null : new PrintWriter(interFile))){
             SpectrumManager sm = new SpectrumManager(this.pus, null, this.sss, this.propagationModel,
                     this.shape, this.cellSize);
             // init spectrum manager with fixed parameters; although pu information may change, the objects do not change
@@ -185,6 +232,15 @@ public class SpectrumAllocationApp implements Runnable{
                 puWriter.println(sm.pusSample());
                 ssWriter.println(sm.sssSample());
                 maxWriter.println(sm.maxPowerSample());
+                // interpolation
+                if (this.interSss != null) {
+                    InterpolatedSpectrumSensor interpolatedSpectrumSensor =
+                            new InterpolatedSpectrumSensor(this.sss, this.interSss, this.interpolationType,
+                                    this.numberOfInterpolatedSensor);
+                    interWriter.println(String.format("%s,%s,%s", interpolatedSpectrumSensor, sm.susInformation(),
+                            sm.suRequestAccepted() ? "1":"0"));
+                }
+
                 System.out.print(progressBar(sample, System.currentTimeMillis() - beginTime));
             }
         }

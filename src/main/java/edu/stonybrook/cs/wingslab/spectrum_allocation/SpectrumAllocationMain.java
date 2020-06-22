@@ -72,6 +72,13 @@ public class SpectrumAllocationMain {
         // ********************************** SSs **********************************
         int number_sensors = 225;
 
+        // ********************************** Interpolated Sensors ********************
+        boolean IS_INTERPOLATED = true;
+        int numberInterpolatedSensors = 100;
+        int numberOfSensorsInterpolated = 4;
+        InterpolatedSpectrumSensor.InterpolationType interpolationType =
+                InterpolatedSpectrumSensor.InterpolationType.LOG;
+
         // ********************************** General **********************************
         // MAX_POWER = True   # make it true if you want to achieve the highest power su can have without interference.
         // calculation for conservative model would also be done
@@ -82,6 +89,18 @@ public class SpectrumAllocationMain {
         long beginTime = System.currentTimeMillis();
         String sensorPath = String.format("%s%s/%d/sensors.txt", SENSOR_PATH, field_shape.toString(),
                 number_sensors);
+
+        String interSensorPath;
+        SpectrumSensor[] interSss = null;
+        if (IS_INTERPOLATED) {
+            interSensorPath = String.format("%s%s/%d/sensors.txt", SENSOR_PATH, field_shape.toString(),
+                    numberInterpolatedSensors);
+            try {
+                interSss = SpectrumSensor.SensorReader(interSensorPath);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
 
         // create proper propagation model
         PropagationModel pm = null;
@@ -146,10 +165,22 @@ public class SpectrumAllocationMain {
                 threadShape = new Square(square);
             else
                 throw new IllegalArgumentException("Shape is not valid.");
-            threads[i] = new Thread(new SpectrumAllocationApp(threadSampleNum[i], Integer.toString(fileAppendix),
-                    resultDict, threadPM, threadCopyPUs, threadCopySss, threadShape, cell_size,
-                    min_sus_number, max_sus_number, min_su_power, max_su_power, tx_height,
-                    min_pus_number, max_pus_number, min_pu_power, max_pu_power, puType));
+            if (!IS_INTERPOLATED)
+                threads[i] = new Thread(new SpectrumAllocationApp(threadSampleNum[i], Integer.toString(fileAppendix),
+                        resultDict, threadPM, threadCopyPUs, threadCopySss, threadShape, cell_size,
+                        min_sus_number, max_sus_number, min_su_power, max_su_power, tx_height,
+                        min_pus_number, max_pus_number, min_pu_power, max_pu_power, puType));
+            else{
+                SpectrumSensor[] threadCopyInterSss = new SpectrumSensor[interSss.length];
+                for (int interSsId = 0; interSsId < interSss.length; interSsId++)
+                    threadCopyInterSss[interSsId] = new SpectrumSensor(interSss[interSsId]);
+
+                threads[i] = new Thread(new SpectrumAllocationApp(threadSampleNum[i], Integer.toString(fileAppendix),
+                        resultDict, threadPM, threadCopyPUs, threadCopySss, threadShape, cell_size,
+                        min_sus_number, max_sus_number, min_su_power, max_su_power, tx_height,
+                        min_pus_number, max_pus_number, min_pu_power, max_pu_power, puType,
+                        threadCopyInterSss, numberOfSensorsInterpolated, interpolationType));
+            }
             threads[i].start();
         }
 
@@ -183,6 +214,10 @@ public class SpectrumAllocationMain {
 
         mergeFiles(SpectrumAllocationApp.getDataDir(), "sensor_" + fileAppendix,  // merging sensor related files
                 SpectrumAllocationApp.getDataDir(), "dynamic_pus_" + number_sensors + "sensor_" + output_format);
+        if (IS_INTERPOLATED)
+            mergeFiles(SpectrumAllocationApp.getDataDir(), "interSensor_" + fileAppendix,  // merging sensor related files
+                    SpectrumAllocationApp.getDataDir(), "dynamic_pus_" +
+                            numberInterpolatedSensors + "InterpolatedSensor_" + output_format);
         System.out.println("File " + "dynamic_pus_" + number_sensors + "sensor_" + output_format + " saved at: " +
                 SpectrumAllocationApp.getDataDir());
 

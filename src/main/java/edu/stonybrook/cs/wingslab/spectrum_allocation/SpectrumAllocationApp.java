@@ -237,8 +237,8 @@ public class SpectrumAllocationApp implements Runnable{
                     InterpolatedSpectrumSensor interpolatedSpectrumSensor =
                             new InterpolatedSpectrumSensor(this.sss, this.interSss, this.interpolationType,
                                     this.numberOfInterpolatedSensor);
-                    interWriter.println(String.format("%s,%s,%s", interpolatedSpectrumSensor, sm.susInformation(),
-                            sm.suRequestAccepted() ? "1":"0"));
+                    interWriter.println(String.format("%s,%d,%s,%s", interpolatedSpectrumSensor, sm.getSus().length,
+                            sm.susInformation(), sm.suRequestAccepted() ? "1":"0"));
                 }
 
                 System.out.print(progressBar(sample, System.currentTimeMillis() - beginTime));

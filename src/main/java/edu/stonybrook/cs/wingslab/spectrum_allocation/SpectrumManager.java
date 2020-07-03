@@ -9,15 +9,17 @@ import edu.stonybrook.cs.wingslab.commons.*;
  * @since 1.0
  * */
 public class SpectrumManager {
-    private final PU[] pus;                             // List of PUs. they might turn off and on over samples
-    private SU[] sus;                                   // List of SUs, changed over samples
-    private final PropagationModel propagationModel;    // propagation model is being used
-    private final int cellSize;                               // cell size
-    private final SpectrumSensor[] sss;                 // List of Spectrum Sensors; they're fixed
-    private final Shape shape;                          // Field's shape
-    private boolean isAllowed;                          // if power of requesting is allowed. This power is ignored
-                                                        // for computing maximum allowed power.
-    private double suMaxPower = Double.NEGATIVE_INFINITY; // maximum power allowed for requesting su
+    private final PU[] pus;                                 // List of PUs. they might turn off and on over samples
+    private SU[] sus;                                       // List of SUs, changed over samples
+    private final PropagationModel propagationModel;        // propagation model is being used
+    private final int cellSize;                             // cell size
+    private final SpectrumSensor[] sss;                     // List of Spectrum Sensors; they're fixed
+    private final Shape shape;                              // Field's shape
+    private boolean isAllowed;                              // if power of requesting is allowed. This power is ignored
+                                                            // for computing maximum allowed power.
+    private double suMaxPower = Double.NEGATIVE_INFINITY;   // maximum power allowed for requesting su
+    private PU mostRestrictivePuIdx = null;                 // index of PU that enforces the most restrictive path-loss
+                                                            // pair relation with requesting SU
 
     /**Spectrum Manager's constructor
      * @param pus array of PU
@@ -218,6 +220,7 @@ public class SpectrumManager {
      * @param su requesting su*/
     private double computeSUMaxPower(SU su){
         double maxPower = Double.POSITIVE_INFINITY; // find the minimum possible without bringing any interference
+        this.mostRestrictivePuIdx = null;
         for (PU pu : this.pus)
             if (pu.isON())
                 for (PUR pur : pu.getPurs()) {
@@ -227,7 +230,10 @@ public class SpectrumManager {
                     double suPowerAtPUR = pur.getInterferenceCapacity();
                     double loss = this.propagationModel.pathLoss(su.getTx().getElement().mul(this.cellSize),
                             purElement.mul(cellSize));
-                    maxPower = Math.min(maxPower, suPowerAtPUR + loss);
+                    if (suPowerAtPUR + loss < maxPower) {
+                        maxPower = suPowerAtPUR + loss;
+                        this.mostRestrictivePuIdx = pu;
+                    }
                 }
         return maxPower;
     }
@@ -246,4 +252,6 @@ public class SpectrumManager {
     public SpectrumSensor[] getSss() { return sss; }
 
     public Shape getShape() { return shape; }
+
+    public PU getMostRestrictivePuIdx() { return mostRestrictivePuIdx; }
 }

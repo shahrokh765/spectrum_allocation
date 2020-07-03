@@ -80,6 +80,10 @@ public class SpectrumAllocationApp implements Runnable{
     private final int numberOfInterpolatedSensor;
     // interpolation type {LOG, LINEAR}
     private final InterpolatedSpectrumSensor.InterpolationType interpolationType;
+    // set if synthetic samples for pu case would be created or not
+    private final boolean puSyntheticSamples;
+    // maximum transmission radius used for creating synthetic samples
+    private final double maxTransRadius;
 
     /**
      * SpectrumAllocationApp constructor. Support interpolation.
@@ -103,14 +107,17 @@ public class SpectrumAllocationApp implements Runnable{
      * @param puType if PUs are static or dynamic
      * @param interSss list of sensors to be interpolated
      * @param numberOfInterpolatedSensor number of known sensors to be selected
-     * @param interpolationType interpolation type*/
+     * @param interpolationType interpolation type
+     * @param puSyntheticSamples indicates if synthetic samples for pu be generated
+     * @param maxTransRadius maximum transmission radius maximum power can get*/
     public SpectrumAllocationApp(int sampleCount, String fileAppendix,
-                                  ConcurrentHashMap<Integer, HashMap<String, Double>> resultDict,
-                                  PropagationModel propagationModel, PU[] pus, SpectrumSensor[] sss, Shape shape,
-                                  int cellSize, int minSuNum, int maxSuNum, double minSuPower, double maxSuPower,
-                                  double suHeight, int minPuNum, int maxPuNum, double minPuPower, double maxPuPower,
-                                  PUType puType, SpectrumSensor[] interSss, int numberOfInterpolatedSensor,
-                                  InterpolatedSpectrumSensor.InterpolationType interpolationType){
+                                 ConcurrentHashMap<Integer, HashMap<String, Double>> resultDict,
+                                 PropagationModel propagationModel, PU[] pus, SpectrumSensor[] sss, Shape shape,
+                                 int cellSize, int minSuNum, int maxSuNum, double minSuPower, double maxSuPower,
+                                 double suHeight, int minPuNum, int maxPuNum, double minPuPower, double maxPuPower,
+                                 PUType puType, SpectrumSensor[] interSss, int numberOfInterpolatedSensor,
+                                 InterpolatedSpectrumSensor.InterpolationType interpolationType,
+                                 boolean puSyntheticSamples, double maxTransRadius){
         super();
         this.sampleCount = sampleCount;
         this.threadId = SpectrumAllocationApp.threadNum++;
@@ -135,6 +142,8 @@ public class SpectrumAllocationApp implements Runnable{
         this.interSss = interSss;
         this.interpolationType = interpolationType;
         this.numberOfInterpolatedSensor = numberOfInterpolatedSensor;
+        this.puSyntheticSamples = puSyntheticSamples;
+        this.maxTransRadius = maxTransRadius;
 
         //creating files and directory(if needed)
         Path dataPath = Paths.get(SpectrumAllocationApp.DATA_DIR);
@@ -175,7 +184,7 @@ public class SpectrumAllocationApp implements Runnable{
                                  PUType puType) {
         this(sampleCount, fileAppendix, resultDict, propagationModel, pus, sss, shape, cellSize, minSuNum,
                 maxSuNum, minSuPower,  maxSuPower, suHeight, minPuNum, maxPuNum, minPuPower, maxPuPower, puType,
-                null, 0, null);
+                null, 0, null, false, 0.0);
     }
 
 
@@ -199,13 +208,16 @@ public class SpectrumAllocationApp implements Runnable{
         File ssFile = new File(SpectrumAllocationApp.DATA_DIR + "/sensor" + fileNameFormat); // sensor
         File maxFile = new File(SpectrumAllocationApp.DATA_DIR + "/max" + fileNameFormat);  // max power values
         File interFile = new File(SpectrumAllocationApp.DATA_DIR + "/interSensor" +
-                fileNameFormat);  // max power values
+                fileNameFormat);  // interpolation file
+        File syntheticFile = new File(SpectrumAllocationApp.DATA_DIR + "/syntheticPu" +
+                fileNameFormat);    // synthetic pu file
 
         // opening files
         try(PrintWriter puWriter = new PrintWriter(puFile);
-                PrintWriter ssWriter = new PrintWriter(ssFile);
-                PrintWriter maxWriter = new PrintWriter(maxFile);
-                PrintWriter interWriter = (this.interSss == null ? null : new PrintWriter(interFile))){
+            PrintWriter ssWriter = new PrintWriter(ssFile);
+            PrintWriter maxWriter = new PrintWriter(maxFile);
+            PrintWriter interWriter = (this.interSss == null ? null : new PrintWriter(interFile));
+            PrintWriter syntheticWriter = (!this.puSyntheticSamples ? null : new PrintWriter(syntheticFile))){
             SpectrumManager sm = new SpectrumManager(this.pus, null, this.sss, this.propagationModel,
                     this.shape, this.cellSize);
             // init spectrum manager with fixed parameters; although pu information may change, the objects do not change
@@ -239,6 +251,14 @@ public class SpectrumAllocationApp implements Runnable{
                                     this.numberOfInterpolatedSensor, this.cellSize);
                     interWriter.println(String.format("%s,%d,%s,%s", interpolatedSpectrumSensor, sm.getSus().length,
                             sm.susInformation(), sm.suRequestAccepted() ? "1":"0"));
+                }
+                // synthetic PU samples
+                if (this.puSyntheticSamples){
+                    SyntheticPUs syntheticPUs = new SyntheticPUs(this.maxTransRadius, this.pus,
+                            sm.getMostRestrictivePuIdx(), this.minPuPower);
+                    if (syntheticPUs.isValid())
+                        syntheticWriter.println(String.format("%s%d,%s,%s", syntheticPUs, sm.getSus().length,
+                                sm.susInformation(), sm.suRequestAccepted() ? "1":"0"));
                 }
 
                 System.out.print(progressBar(sample, System.currentTimeMillis() - beginTime));

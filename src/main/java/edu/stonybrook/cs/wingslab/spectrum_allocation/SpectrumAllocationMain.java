@@ -30,13 +30,13 @@ public class SpectrumAllocationMain {
         // ********************************** Field Parameters **********************************
         double tx_height = 30;                          // in meter
         double rx_height =  15;                         // in meter
-        Shape field_shape = new Square(100);       // Square and Rectangle are supported for now.
+        Shape field_shape = new Square(1000);       // Square and Rectangle are supported for now.
                                                         // in meter and originated in (0, 0). 1000 for log, 100 for splat
         int cell_size = 10;                               // in meter
 
         // ********************************** Propagation Model **********************************
-        String propagationModel = "splat";                // 'splat' or 'log'
-        double alpha = 3;                               // propagation model coeff.  2.0 for 4km, 3 for 1km, 4.9 for 200m.
+        String propagationModel = "log";                // 'splat' or 'log'
+        double alpha = 3.5;                               // propagation model coeff.  2.0 for 4km, 3 for 1km, 4.9 for 200m.
                                                         // Applicable for log
         boolean noise = true;                           // std in dB.
         double std =  1.0;                              // Applicable for log
@@ -56,35 +56,45 @@ public class SpectrumAllocationMain {
                                                         // min=max means # of pus doesn't change
         double min_pu_power = -30.0;
         double max_pu_power = 0.0;                      // in dB. PU's power do not change for static PUs case
-        int pur_number = 5;                            // number of purs each pu can have 10 for log, 5 for splat
+        int pur_number = 10;                            // number of purs each pu can have 10 for log, 5 for splat
         PUR.InterferenceMethod pur_metric =
                 PUR.InterferenceMethod.BETA;            // BETA and THRESHOLD
-        double pur_metric_value = 0.05;                  // beta: 0.05 for splat and 1 for log, threshold(power in dB)
+        double pur_metric_value = 1;                  // beta: 0.05 for splat and 1 for log, threshold(power in dB)
         double min_pur_dist = 1.0;                      // * cell_size, min_distance from each pur to its pu
-        double max_pur_dist = 2.0;                      // * cell_size, max_distance from each pur to its pu
+        double max_pur_dist = 3.0;                      // * cell_size, max_distance from each pur to its pu
 
         // ********************************** SUs **********************************
         int min_sus_number = 1;
-        int max_sus_number = 4;                         // min(max) number of sus; i.e. # of sus is different for each sample.
+        int max_sus_number = 1;                         // min(max) number of sus; i.e. # of sus is different for each sample.
         double min_su_power = min_pu_power - 5;         // used for binary case
         double max_su_power = max_pu_power + 55;        // used for binary case
 
         // ********************************** SSs **********************************
-        int number_sensors = 225;
+        int number_sensors = 900;
 
         // ********************************** Interpolated Sensors ********************
-        boolean IS_INTERPOLATED = true;
-        int numberInterpolatedSensors = 100;
+        boolean IS_INTERPOLATED = false;
+        int numberInterpolatedSensors = 625;
         int numberOfSensorsInterpolated = 4;
         InterpolatedSpectrumSensor.InterpolationType interpolationType =
                 InterpolatedSpectrumSensor.InterpolationType.LOG;
+
+        // ********************************** Synthetic PUs *****************************
+        boolean IS_SYNTHETIC = true;
+        double maxTransRadius = 0.0;
+        if (propagationModel.equals("log"))
+            maxTransRadius = Math.pow(10, (max_pu_power - noise_floor)/(10 * alpha));
+        else{
+            // TODO find it systematically
+            maxTransRadius = 1000;
+        }
 
         // ********************************** General **********************************
         // MAX_POWER = True   # make it true if you want to achieve the highest power su can have without interference.
         // calculation for conservative model would also be done
         int number_of_process = 8;                      // number of process
         //INTERPOLATION, CONSERVATIVE = False, False
-        int n_samples = 50000;                            // number of samples
+        int n_samples = 600;                            // number of samples
 
         long beginTime = System.currentTimeMillis();
         String sensorPath = String.format("%s%s/%d/sensors.txt", SENSOR_PATH, field_shape.toString(),
@@ -169,7 +179,8 @@ public class SpectrumAllocationMain {
                 threads[i] = new Thread(new SpectrumAllocationApp(threadSampleNum[i], Integer.toString(fileAppendix),
                         resultDict, threadPM, threadCopyPUs, threadCopySss, threadShape, cell_size,
                         min_sus_number, max_sus_number, min_su_power, max_su_power, tx_height,
-                        min_pus_number, max_pus_number, min_pu_power, max_pu_power, puType));
+                        min_pus_number, max_pus_number, min_pu_power, max_pu_power, puType,
+                        null, 0, null, IS_SYNTHETIC, maxTransRadius));
             else{
                 SpectrumSensor[] threadCopyInterSss = new SpectrumSensor[interSss.length];
                 for (int interSsId = 0; interSsId < interSss.length; interSsId++)
@@ -179,7 +190,9 @@ public class SpectrumAllocationMain {
                         resultDict, threadPM, threadCopyPUs, threadCopySss, threadShape, cell_size,
                         min_sus_number, max_sus_number, min_su_power, max_su_power, tx_height,
                         min_pus_number, max_pus_number, min_pu_power, max_pu_power, puType,
-                        threadCopyInterSss, numberOfSensorsInterpolated, interpolationType));
+                        threadCopyInterSss,
+                        numberOfSensorsInterpolated, interpolationType,
+                        IS_SYNTHETIC, maxTransRadius));
             }
             threads[i].start();
         }
@@ -214,12 +227,22 @@ public class SpectrumAllocationMain {
 
         mergeFiles(SpectrumAllocationApp.getDataDir(), "sensor_" + fileAppendix,  // merging sensor related files
                 SpectrumAllocationApp.getDataDir(), "dynamic_pus_" + number_sensors + "sensor_" + output_format);
-        if (IS_INTERPOLATED)
+        System.out.println("File " + "dynamic_pus_" + number_sensors + "sensor_" + output_format + " saved at: " +
+                SpectrumAllocationApp.getDataDir());
+        if (IS_INTERPOLATED) {
             mergeFiles(SpectrumAllocationApp.getDataDir(), "interSensor_" + fileAppendix,  // merging sensor related files
                     SpectrumAllocationApp.getDataDir(), "dynamic_pus_" +
                             numberInterpolatedSensors + "InterpolatedSensor_" + output_format);
-        System.out.println("File " + "dynamic_pus_" + number_sensors + "sensor_" + output_format + " saved at: " +
-                SpectrumAllocationApp.getDataDir());
+            System.out.println("File " + "dynamic_pus_" + numberInterpolatedSensors + "InterpolatedSensor_" +
+                    output_format + " saved at: " + SpectrumAllocationApp.getDataDir());
+        }
+        if (IS_SYNTHETIC){
+            mergeFiles(SpectrumAllocationApp.getDataDir(), "syntheticPu_" + fileAppendix,  // merging sensor related files
+                    SpectrumAllocationApp.getDataDir(), "dynamic_pus_synthetic"  + output_format);
+            System.out.println("File " + "dynamic_pus_synthetic_" + output_format
+                    + " saved at: " + SpectrumAllocationApp.getDataDir());
+        }
+
 
         // displaying statistics
         int numSampleAccepted = 0;
@@ -230,15 +253,15 @@ public class SpectrumAllocationMain {
         System.out.println("Number of accepted samples:" + numSampleAccepted);
         // more for splat
         if (propagationModel.contains("splat")){
-            int fetchNum = 0;           // number of using hash map
-            int execNum = 0;            // number of executing splat command line
+            long fetchNum = 0;           // number of using hash map
+            long execNum = 0;            // number of executing splat command line
             long fetchTime = 0;          // duration(milliseconds) of fetching
             long execTime = 0;           // duration(milliseconds) of executing
             for (HashMap<String, Double> threadInfo : resultDict.values()) {
                 if (threadInfo.containsKey("Fetch Number"))
-                    fetchNum += threadInfo.get("Fetch Number").intValue();
+                    fetchNum += threadInfo.get("Fetch Number").longValue();
                 if (threadInfo.containsKey("Execution Number"))
-                    execNum += threadInfo.get("Execution Number").intValue();
+                    execNum += threadInfo.get("Execution Number").longValue();
                 if (threadInfo.containsKey("Fetch Time"))
                     fetchTime += threadInfo.get("Fetch Time").longValue();
                 if (threadInfo.containsKey("Execution Time"))

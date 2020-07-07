@@ -255,7 +255,7 @@ public class SpectrumAllocationApp implements Runnable{
                 // synthetic PU samples
                 if (this.puSyntheticSamples){
                     SyntheticPUs syntheticPUs = new SyntheticPUs(this.maxTransRadius, this.pus,
-                            sm.getMostRestrictivePuIdx(), this.minPuPower);
+                            sm.getMostRestrictivePuIdx(), this.minPuPower, this.cellSize);
                     if (syntheticPUs.isValid())
                         syntheticWriter.println(String.format("%s%d,%s,%s", syntheticPUs, sm.getSus().length,
                                 sm.susInformation(), sm.suRequestAccepted() ? "1":"0"));

@@ -17,7 +17,7 @@ public class SyntheticPUs {
      * @param rMax maximum transmission distance
      * @param pus array of existing pus
     */
-    public SyntheticPUs(double rMax, PU[] pus, PU mostRestrictivePU, double minPowerAllowed){
+    public SyntheticPUs(double rMax, PU[] pus, PU mostRestrictivePU, double minPowerAllowed, int cellSIze){
         valid = false;
         int numberActivePus = 0;
         for (PU pu : pus)
@@ -30,7 +30,7 @@ public class SyntheticPUs {
             if (pu.isON()){
                 newPus[puIdx] = new PU(pu);
                 if (pu.getTx().getElement().getLocation().distance(mostRestrictivePU.getTx().getElement().getLocation())
-                > rMax) {  // if distance > rMax, we can decrease the power
+                * cellSIze > rMax) {  // if distance > rMax, we can decrease the power
                     newPus[puIdx].getTx().setPower(ThreadLocalRandom.current().nextDouble(minPowerAllowed,
                             pu.getTx().getPower()));
                     valid = true;

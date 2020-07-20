@@ -30,12 +30,12 @@ public class SpectrumAllocationMain {
         // ********************************** Field Parameters **********************************
         double tx_height = 30;                          // in meter
         double rx_height =  15;                         // in meter
-        Shape field_shape = new Square(1000);       // Square and Rectangle are supported for now.
+        Shape field_shape = new Square(100);       // Square and Rectangle are supported for now.
                                                         // in meter and originated in (0, 0). 1000 for log, 100 for splat
         int cell_size = 10;                               // in meter
 
         // ********************************** Propagation Model **********************************
-        String propagationModel = "log";                // 'splat' or 'log'
+        String propagationModel = "splat";                // 'splat' or 'log'
         double alpha = 3.5;                               // propagation model coeff.  2.0 for 4km, 3 for 1km, 4.9 for 200m.
                                                         // Applicable for log
         boolean noise = true;                           // std in dB.
@@ -50,18 +50,18 @@ public class SpectrumAllocationMain {
         SpectrumAllocationApp.PUType puType =
                 SpectrumAllocationApp.PUType.DYNAMIC;   // DYNAMIC means PU's power and location changes for each sample.
                                                         // STATIC means they do not change.
-        int min_pus_number = 10;                        // min number of pus all over the field
+        int min_pus_number = 20;                        // min number of pus all over the field
         int max_pus_number = 20;                        // max number of pus all over the field;
                                                         // i.e. # of pus is different for each sample.
                                                         // min=max means # of pus doesn't change
         double min_pu_power = -30.0;
         double max_pu_power = 0.0;                      // in dB. PU's power do not change for static PUs case
-        int pur_number = 10;                            // number of purs each pu can have 10 for log, 5 for splat
+        int pur_number = 5;                            // number of purs each pu can have 10 for log, 5 for splat
         PUR.InterferenceMethod pur_metric =
                 PUR.InterferenceMethod.BETA;            // BETA and THRESHOLD
-        double pur_metric_value = 1;                  // beta: 0.05 for splat and 1 for log, threshold(power in dB)
+        double pur_metric_value = 0.05;                  // beta: 0.05 for splat and 1 for log, threshold(power in dB)
         double min_pur_dist = 1.0;                      // * cell_size, min_distance from each pur to its pu
-        double max_pur_dist = 3.0;                      // * cell_size, max_distance from each pur to its pu
+        double max_pur_dist = 2.0;                      // * cell_size, max_distance from each pur to its pu
 
         // ********************************** SUs **********************************
         int min_sus_number = 1;
@@ -70,7 +70,7 @@ public class SpectrumAllocationMain {
         double max_su_power = max_pu_power + 55;        // used for binary case
 
         // ********************************** SSs **********************************
-        int number_sensors = 900;
+        int number_sensors = 100;
 
         // ********************************** Interpolated Sensors ********************
         boolean IS_INTERPOLATED = false;
@@ -80,13 +80,13 @@ public class SpectrumAllocationMain {
                 InterpolatedSpectrumSensor.InterpolationType.LOG;
 
         // ********************************** Synthetic PUs *****************************
-        boolean IS_SYNTHETIC = true;
+        boolean IS_SYNTHETIC = false;
         double maxTransRadius = 0.0;
         if (propagationModel.equals("log"))
             maxTransRadius = Math.pow(10, (max_pu_power - noise_floor)/(10 * alpha));
         else{
             // TODO find it systematically
-            maxTransRadius = 1000;
+            maxTransRadius = 400;
         }
 
         // ********************************** General **********************************
@@ -94,7 +94,7 @@ public class SpectrumAllocationMain {
         // calculation for conservative model would also be done
         int number_of_process = 8;                      // number of process
         //INTERPOLATION, CONSERVATIVE = False, False
-        int n_samples = 600;                            // number of samples
+        int n_samples = 60000;                            // number of samples
 
         long beginTime = System.currentTimeMillis();
         String sensorPath = String.format("%s%s/%d/sensors.txt", SENSOR_PATH, field_shape.toString(),
@@ -138,6 +138,8 @@ public class SpectrumAllocationMain {
                 min_pur_dist, max_pur_dist, rx_height);
 
         // TODO implement std calculation
+        CalculateSTD calculateSTD = new CalculateSTD(pus, pm, field_shape, cell_size);
+        System.out.println(calculateSTD.getStd());
 
         // ****************************** creating threads ************************
         ConcurrentHashMap<Integer, HashMap<String, Double>> resultDict = new ConcurrentHashMap<>();

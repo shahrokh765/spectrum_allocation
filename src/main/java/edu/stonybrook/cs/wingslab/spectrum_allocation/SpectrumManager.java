@@ -254,4 +254,6 @@ public class SpectrumManager {
     public Shape getShape() { return shape; }
 
     public PU getMostRestrictivePuIdx() { return mostRestrictivePuIdx; }
+
+    public double getSuMaxPower() { return suMaxPower; }
 }

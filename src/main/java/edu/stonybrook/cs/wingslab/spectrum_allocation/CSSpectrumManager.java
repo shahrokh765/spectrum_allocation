@@ -77,8 +77,8 @@ public class CSSpectrumManager {
     // path-loss values between PUs(plus active SUs) and SSs
     private double[][] pusSSsPathLoss() {
         double[][] puSSPL = new double[this.pus.length + this.sus.length - 1][this.sss.length];
-        for (double[] puSSPLrow : puSSPL)
-            Arrays.fill(puSSPLrow, Double.POSITIVE_INFINITY);
+//        for (double[] puSSPLrow : puSSPL)
+//            Arrays.fill(puSSPLrow, Double.POSITIVE_INFINITY);
         int activePusNum = activePUs();
         for (int ssId = 0; ssId < this.sss.length; ssId++) {
             ElementDistance[] pusDistance = new ElementDistance[activePusNum + this.sus.length - 1];
@@ -90,15 +90,29 @@ public class CSSpectrumManager {
                             this.pus[puId].getTx().getElement().getLocation().mul(this.cellSize)),
                             this.pus[puId].getTx().getPower());
             for (int suId = 0; suId < this.sus.length - 1; suId++)
-                pusDistance[activePusNum + suId] = new ElementDistance(activePusNum + suId,
+                pusDistance[activePusNum + suId] = new ElementDistance(this.pus.length + suId,
                         this.sss[ssId].getRx().getElement().getLocation().mul(this.cellSize).distance(
                                 this.sus[suId].getTx().getElement().getLocation().mul(this.cellSize)),
                         this.sus[suId].getTx().getPower());
             ElementDistance[] nearestPus = findNearestElements(pusDistance, this.numPusSelected);
+
+            //check if a sensor and a PU/SU are locates in the same place
+            boolean isCollocation = false;
+            for (ElementDistance puSu : nearestPus){
+                if (puSu.distance == 0) {
+                    puSSPL[puSu.id][ssId] = 1;
+                    isCollocation = true;
+                    break;
+                }
+            }
+            if (isCollocation)
+                continue;           // no need to continue because all power to that ss comes from the PU/SU located at
+                                    // that place.
+
             double totalWeight = 0.0;    // total weight of nearby pus (puPower/distance(pu, ss)
-            for (ElementDistance pu : nearestPus)
-                totalWeight += WirelessTools.getDecimal(pu.power)/
-                        Math.pow(pu.distance, this.alpha);
+            for (ElementDistance puSu : nearestPus)
+                totalWeight += WirelessTools.getDecimal(puSu.power)/
+                        Math.pow(puSu.distance, this.alpha);
             for(ElementDistance pu : nearestPus)
                 puSSPL[pu.id][ssId] = totalWeight /
                         (WirelessTools.getDecimal(this.sss[ssId].getRx().getReceived_power()) *
@@ -113,16 +127,25 @@ public class CSSpectrumManager {
         int activePUsNum = activePUs();
         if (this.interpolationType == INTERPOLATION.IDW || this.interpolationType == INTERPOLATION.ILDW) {
             ElementDistance[] sssDistance = new ElementDistance[this.sss.length];
-            for (int ssId = 0; ssId < this.sss.length; ssId++)
+            for (int ssId = 0; ssId < this.sss.length; ssId++) {
                 sssDistance[ssId] = new ElementDistance(ssId,
                         this.sus[this.sus.length - 1].getTx().getElement().getLocation().mul(this.cellSize).distance(
                                 this.sss[ssId].getRx().getElement().getLocation().mul(this.cellSize)), 0.0);
+                // first check if a sensor and SU are located at the same place. IF yes, take that value
+                if (sssDistance[ssId].distance == 0){
+                    for (int puId = 0; puId < this.pus.length; puId++)
+                        pusSUPL[puId] = pusSSPL[puId][ssId];                                        //pus
+                    for (int suId = 0; suId < this.sus.length - 1; suId++)
+                        pusSUPL[this.pus.length + suId] = pusSSPL[this.pus.length + suId][ssId];    //sus
+                    return pusSUPL;
+                }
+            }
             ElementDistance[] nearestSS = findNearestElements(sssDistance, this.numSssSelected);
             double totalWeight = 0.0;
             for (ElementDistance ss : nearestSS) {
                 totalWeight += switch (this.interpolationType) {
-                    case IDW: yield 1 / (Math.pow(ss.distance, this.alpha) + Double.MIN_VALUE);
-                    case ILDW: yield 1 / (Math.log10(1 + ss.distance) + Double.MIN_VALUE);
+                    case IDW: yield 1 / (Math.pow(ss.distance + Double.MIN_VALUE, this.alpha));
+                    case ILDW: yield 1 / (Math.log10(1 + ss.distance + Double.MIN_VALUE));
                     case OK: yield 0.0;     // not applicable
                 };
             }
@@ -131,8 +154,8 @@ public class CSSpectrumManager {
                 if (this.pus[puId].isON()) {
                     for (ElementDistance ss : nearestSS) {
                         pusSUPL[puId] += pusSSPL[puId][ss.id] * switch (this.interpolationType) {
-                            case IDW: yield 1 / (Math.pow(ss.distance, this.alpha) + Double.MIN_VALUE);
-                            case ILDW: yield 1 / (Math.log10(1 + ss.distance) + Double.MIN_VALUE);
+                            case IDW: yield 1 / (Math.pow(ss.distance + Double.MIN_VALUE, this.alpha));
+                            case ILDW: yield 1 / (Math.log10(1 + ss.distance + Double.MIN_VALUE));
                             case OK: yield 0.0;     // not applicable
                         };
                     }
@@ -143,10 +166,10 @@ public class CSSpectrumManager {
                 for (ElementDistance ss : nearestSS) {
                     pusSUPL[this.pus.length + suId] += pusSSPL[this.pus.length + suId][ss.id] *
                             switch (this.interpolationType) {
-                        case IDW: yield 1 / (Math.pow(ss.distance, this.alpha) + Double.MIN_VALUE);
-                        case ILDW: yield 1 / (Math.log10(1 + ss.distance) + Double.MIN_VALUE);
-                        case OK: yield 0.0;     // not applicable
-                    };
+                                case IDW: yield 1 / (Math.pow(ss.distance + Double.MIN_VALUE, this.alpha));
+                                case ILDW: yield 1 / (Math.log10(1 + ss.distance + Double.MIN_VALUE));
+                                case OK: yield 0.0;     // not applicable
+                            };
                 }
                 pusSUPL[this.pus.length + suId] /= totalWeight;
             }// end of active SUs
@@ -168,21 +191,23 @@ public class CSSpectrumManager {
         double maxPower = Double.POSITIVE_INFINITY; // find the minimum possible without bringing any interference
         for (int puId = 0; puId < this.pus.length; puId++) {
             PU pu = this.pus[puId];
-            if (pu.isON() && pusSuPL[puId] != Double.POSITIVE_INFINITY)
+            if (pu.isON() && pusSuPL[puId] != 0)
                 for (PUR pur : pu.getPurs()) {
                     // pur location is relational and it should be updated first
                     Element purElement = new Element(pu.getTx().getElement().getLocation().add(
                             pur.getRx().getElement().getLocation()), pur.getRx().getElement().getHeight());
                     double suPowerAtPUR = pur.getInterferenceCapacity();
-                    double purSuDistance = purElement.getLocation().distance(
-                            this.sus[this.sus.length - 1].getTx().getElement().getLocation());
-                    double puSuDistance = pu.getTx().getElement().getLocation().distance(
-                            this.sus[this.sus.length - 1].getTx().getElement().getLocation());
+                    double purSuDistance = purElement.getLocation().mul(cellSize).distance(
+                            this.sus[this.sus.length - 1].getTx().getElement().getLocation().mul(cellSize));
+                    double puSuDistance = pu.getTx().getElement().getLocation().mul(cellSize).distance(
+                            this.sus[this.sus.length - 1].getTx().getElement().getLocation().mul(cellSize));
                     double loss = WirelessTools.getDB(pusSuPL[puId] *
-                            Math.pow((purSuDistance / puSuDistance), this.alpha));
+                            Math.pow((Math.max(purSuDistance, 1) / Math.max(puSuDistance, 1)), this.alpha));
                     maxPower = Math.min(maxPower, suPowerAtPUR - loss);
                 }
         }
+        if (maxPower == Double.POSITIVE_INFINITY)
+            return Double.NEGATIVE_INFINITY;
         return maxPower;
     }
 

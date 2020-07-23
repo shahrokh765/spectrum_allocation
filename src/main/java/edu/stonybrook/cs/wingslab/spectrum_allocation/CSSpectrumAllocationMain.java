@@ -73,8 +73,8 @@ public class CSSpectrumAllocationMain {
         int number_sensors = 3600;
 
         // ********************************** CS Spectrum Manager *********************
-        double csAlpha = 3.3;       // best valus for splat [3.2-3.5]
-        int numPusSelected = 12;
+        double csAlpha = 4;       // best values for splat [3.2-3.5]
+        int numPusSelected = 20;
         int numSssSelected = 20;
         CSSpectrumManager.INTERPOLATION interpolationType = CSSpectrumManager.INTERPOLATION.IDW;
 
@@ -189,7 +189,7 @@ public class CSSpectrumAllocationMain {
         }
 
         // displaying results
-        int validSamples = 0;
+        int validSamples = 0, invalidSamples = 0;
         double totalAverageDiffPower = 0.0;
         int totalPowerCnt = 0;
         double totalAverageFPDiffPower = 0.0;
@@ -197,6 +197,8 @@ public class CSSpectrumAllocationMain {
         for (HashMap<String, Double> threadInfo : resultDict.values()) {
             if (threadInfo.containsKey("Valid Samples"))
                 validSamples += threadInfo.get("Valid Samples").intValue();
+            if (threadInfo.containsKey("Invalid Samples"))
+                invalidSamples += threadInfo.get("Invalid Samples").intValue();
             if (threadInfo.containsKey("Average Difference Power")) {
                 totalAverageDiffPower += threadInfo.get("Average Difference Power");
                 totalPowerCnt++;
@@ -208,10 +210,11 @@ public class CSSpectrumAllocationMain {
         }
         System.out.println("");
         System.out.println(String.format("""
-                        Number of Samples = %d
+                        Number of Samples (invalid) = %d (%d)
                         Total Average Power Diff. = %.2f\s
                         Total FP Average Power Diff. = %.2f""",
-                validSamples, totalAverageDiffPower/totalPowerCnt, totalAverageFPDiffPower/totalFpPowerCnt));
+                validSamples, invalidSamples, totalAverageDiffPower/totalPowerCnt,
+                totalAverageFPDiffPower/totalFpPowerCnt));
         long duration = System.currentTimeMillis() - beginTime;
         System.out.println(String.format("\nDuration = %d:%02d:%02d", TimeUnit.MILLISECONDS.toHours(duration),
                 TimeUnit.MILLISECONDS.toMinutes(duration) % TimeUnit.HOURS.toMinutes(1),

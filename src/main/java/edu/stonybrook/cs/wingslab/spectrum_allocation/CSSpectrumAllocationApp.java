@@ -196,7 +196,7 @@ public class CSSpectrumAllocationApp implements Runnable{
     public void run() {
         double totalDiffPower = 0.0;
         double totalFPDiffPower = 0.0;
-        int validSamples = 0;
+        int validSamples = 0, invalidSamples = 0;
         SpectrumManager sm = new SpectrumManager(this.pus, null, this.sss, this.propagationModel,
                 this.shape, this.cellSize);
         // init spectrum manager with fixed parameters; although pu information may change, the objects do not change
@@ -223,11 +223,14 @@ public class CSSpectrumAllocationApp implements Runnable{
                         this.numPusSelected, this.numSssSelected, this.interpolationType, this.alpha, this.cellSize);
                 if (csSm.getSuMaxPower() == Double.POSITIVE_INFINITY ||
                         csSm.getSuMaxPower() == Double.NEGATIVE_INFINITY || Double.isNaN(csSm.getSuMaxPower()))
-                   continue;
-                validSamples++;
-                totalDiffPower += Math.abs(sm.getSuMaxPower() - csSm.getSuMaxPower());
-                if (csSm.getSuMaxPower() > sm.getSuMaxPower())
-                    totalFPDiffPower += Math.abs(sm.getSuMaxPower() - csSm.getSuMaxPower());
+                   invalidSamples++;
+                else {
+                    validSamples++;
+
+                    totalDiffPower += Math.abs(sm.getSuMaxPower() - csSm.getSuMaxPower());
+                    if (csSm.getSuMaxPower() > sm.getSuMaxPower())
+                        totalFPDiffPower += Math.abs(sm.getSuMaxPower() - csSm.getSuMaxPower());
+                }
             }
 
             System.out.print(progressBar(sample, System.currentTimeMillis() - beginTime));
@@ -235,6 +238,7 @@ public class CSSpectrumAllocationApp implements Runnable{
         System.out.println("");
         HashMap<String, Double> threadInfo = new HashMap<>();
         threadInfo.put("Valid Samples", (double) validSamples);
+        threadInfo.put("Invalid Samples", (double) invalidSamples);
         threadInfo.put("Average Difference Power", totalDiffPower/validSamples);
         threadInfo.put("Average FP Difference Power", totalFPDiffPower/validSamples);
         if (this.propagationModel instanceof Splat splat){

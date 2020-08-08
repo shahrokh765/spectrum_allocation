@@ -1,8 +1,6 @@
 package edu.stonybrook.cs.wingslab.spectrum_allocation;
 
-import edu.stonybrook.cs.wingslab.commons.Element;
-import edu.stonybrook.cs.wingslab.commons.SpectrumSensor;
-import edu.stonybrook.cs.wingslab.commons.WirelessTools;
+import edu.stonybrook.cs.wingslab.commons.*;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -48,16 +46,23 @@ public class CSSpectrumManager {
     private final PU[] pus;
     private final SpectrumSensor[] sss;
     private final SU[] sus;
-    private final int numPusSelected;     // number of pus selected to split SSs' power
-    private final int numSssSelected;     // number of SSs to do interpolation
+    private final int numPusSelected;       // number of pus selected to split SSs' power
+    private final int numSssSelected;       // number of SSs to do interpolation
 //    private boolean pusSplit;
     private final INTERPOLATION interpolationType;
-    private final double alpha;           // a parameter used for splitting and interpolation
+    private final double alpha;             // a parameter used for splitting and interpolation
+    private final boolean detrended;        // this is used for OK meaning log-distance components would be removed
+                                            // before interpolating
     private final int cellSize;
     private double suMaxPower = 0.0;
 
     public CSSpectrumManager(PU[] pus, SpectrumSensor[] sss, SU[] sus, int numPusSelected, int numSssSelected,
-                             INTERPOLATION interpolationType, double alpha, int cellSize) {
+                             INTERPOLATION interpolationType, double alpha, int cellSize){
+        this(pus, sss, sus, numPusSelected, numSssSelected, interpolationType, alpha, cellSize, true);
+    }
+
+    public CSSpectrumManager(PU[] pus, SpectrumSensor[] sss, SU[] sus, int numPusSelected, int numSssSelected,
+                             INTERPOLATION interpolationType, double alpha, int cellSize, boolean detrended) {
         super();
         this.pus = pus;
         this.sss = sss;
@@ -68,9 +73,11 @@ public class CSSpectrumManager {
         this.interpolationType = interpolationType;
         this.alpha = alpha;
         this.cellSize = cellSize;
+        this.detrended = detrended;
 
         double[][] pusSSsPL = pusSSsPathLoss();
         double[] pusSUPL = pusSUPathLoss(pusSSsPL);
+
         suMaxPower = suMaxPower(pusSUPL);
     }
 
@@ -124,23 +131,24 @@ public class CSSpectrumManager {
     //path-loss between PUs and requesting(last) SU
     private double[] pusSUPathLoss(double[][] pusSSPL) {
         double[] pusSUPL = new double[this.pus.length + this.sus.length - 1];  // all pus + active SUs to requesting SU
-        int activePUsNum = activePUs();
-        if (this.interpolationType == INTERPOLATION.IDW || this.interpolationType == INTERPOLATION.ILDW) {
-            ElementDistance[] sssDistance = new ElementDistance[this.sss.length];
-            for (int ssId = 0; ssId < this.sss.length; ssId++) {
-                sssDistance[ssId] = new ElementDistance(ssId,
-                        this.sus[this.sus.length - 1].getTx().getElement().getLocation().mul(this.cellSize).distance(
-                                this.sss[ssId].getRx().getElement().getLocation().mul(this.cellSize)), 0.0);
-                // first check if a sensor and SU are located at the same place. IF yes, take that value
-                if (sssDistance[ssId].distance == 0){
-                    for (int puId = 0; puId < this.pus.length; puId++)
-                        pusSUPL[puId] = pusSSPL[puId][ssId];                                        //pus
-                    for (int suId = 0; suId < this.sus.length - 1; suId++)
-                        pusSUPL[this.pus.length + suId] = pusSSPL[this.pus.length + suId][ssId];    //sus
-                    return pusSUPL;
-                }
+        ElementDistance[] sssDistance = new ElementDistance[this.sss.length];
+        for (int ssId = 0; ssId < this.sss.length; ssId++) {
+            sssDistance[ssId] = new ElementDistance(ssId,
+                    this.sus[this.sus.length - 1].getTx().getElement().getLocation().mul(this.cellSize).distance(
+                            this.sss[ssId].getRx().getElement().getLocation().mul(this.cellSize)), 0.0);
+            // first check if a sensor and SU are located at the same place. IF yes, take that value
+            if (sssDistance[ssId].distance == 0){
+                for (int puId = 0; puId < this.pus.length; puId++)
+                    pusSUPL[puId] = pusSSPL[puId][ssId];                                        //pus
+                for (int suId = 0; suId < this.sus.length - 1; suId++)
+                    pusSUPL[this.pus.length + suId] = pusSSPL[this.pus.length + suId][ssId];    //sus
+                return pusSUPL;
             }
-            ElementDistance[] nearestSS = findNearestElements(sssDistance, this.numSssSelected);
+        }
+
+        ElementDistance[] nearestSS = findNearestElements(sssDistance, this.numSssSelected);
+
+        if (this.interpolationType == INTERPOLATION.IDW || this.interpolationType == INTERPOLATION.ILDW) {
             double totalWeight = 0.0;
             for (ElementDistance ss : nearestSS) {
                 totalWeight += switch (this.interpolationType) {
@@ -173,6 +181,61 @@ public class CSSpectrumManager {
                 }
                 pusSUPL[this.pus.length + suId] /= totalWeight;
             }// end of active SUs
+        }else if (this.interpolationType == INTERPOLATION.OK){
+            double[][] nearestSsLocations = new double[nearestSS.length][2]; // x, y of nearest ss
+            for (int ssi = 0; ssi < nearestSS.length; ssi++){
+                int ssId = nearestSS[ssi].id;
+                SpectrumSensor ss = this.sss[ssId];
+                nearestSsLocations[ssi][0] = ss.getRx().getElement().getLocation().getCartesian().getX()
+                        * cellSize; // x
+                nearestSsLocations[ssi][1] = ss.getRx().getElement().getLocation().getCartesian().getY()
+                        * cellSize; // y
+            }
+
+            //interpolated pu-ss(nearest) pl values
+            LogDistancePM logDistancePM = new LogDistancePM(this.alpha);
+            for (int puId = 0; puId < this.pus.length; puId++){     // pus-su interpolation
+                double[] nearestSsPuPL = new double[nearestSS.length];      // pl value for nearest ss
+                for (int ssi = 0; ssi < nearestSS.length; ssi++) {
+                    nearestSsPuPL[ssi] = pusSSPL[puId][nearestSS[ssi].id];
+                    if (detrended) {
+                        nearestSsPuPL[ssi] = WirelessTools.getDecimal(WirelessTools.getDB(nearestSsPuPL[ssi]) -
+                                logDistancePM.pathLoss(this.pus[puId].getTx().getElement().getLocation().distance(
+                                        this.sss[ssi].getRx().getElement().getLocation()) * this.cellSize));
+                    }
+                }
+                SU requestingSu = this.sus[this.sus.length - 1];
+                OrdinaryKriging ordinaryKriging = new OrdinaryKriging(nearestSsLocations, nearestSsPuPL,
+                        requestingSu.getTx().getElement().getLocation().getCartesian().getX(),
+                        requestingSu.getTx().getElement().getLocation().getCartesian().getY());
+                double interpolatedValue = ordinaryKriging.interpolate();
+                if (detrended)
+                    interpolatedValue = WirelessTools.getDecimal(WirelessTools.getDB(interpolatedValue) -
+                            logDistancePM.pathLoss(this.pus[puId].getTx().getElement().getLocation().distance(
+                                    requestingSu.getTx().getElement().getLocation()) * this.cellSize));
+                pusSUPL[puId] = interpolatedValue;
+            }//end of pus
+            for (int suId = 0; suId < this.pus.length - 1; suId++){     // pus-su interpolation
+                double[] nearestSsPuPL = new double[nearestSS.length];      // pl value for nearest ss
+                for (int ssi = 0; ssi < nearestSS.length; ssi++) {
+                    nearestSsPuPL[ssi] = pusSSPL[this.pus.length + suId][nearestSS[ssi].id];
+                    if (detrended) {
+                        nearestSsPuPL[ssi] = WirelessTools.getDecimal(WirelessTools.getDB(nearestSsPuPL[ssi]) -
+                                logDistancePM.pathLoss(this.sus[suId].getTx().getElement().getLocation().distance(
+                                        this.sss[ssi].getRx().getElement().getLocation()) * this.cellSize));
+                    }
+                }
+                SU requestingSu = this.sus[this.sus.length - 1];
+                OrdinaryKriging ordinaryKriging = new OrdinaryKriging(nearestSsLocations, nearestSsPuPL,
+                        requestingSu.getTx().getElement().getLocation().getCartesian().getX(),
+                        requestingSu.getTx().getElement().getLocation().getCartesian().getY());
+                double interpolatedValue = ordinaryKriging.interpolate();
+                if (detrended)
+                    interpolatedValue = WirelessTools.getDecimal(WirelessTools.getDB(interpolatedValue) -
+                            logDistancePM.pathLoss(this.sus[suId].getTx().getElement().getLocation().distance(
+                                    requestingSu.getTx().getElement().getLocation()) * this.cellSize));
+                pusSUPL[this.pus.length + suId] = interpolatedValue;
+            }
         }
         return pusSUPL;
     }

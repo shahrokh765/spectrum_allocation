@@ -70,20 +70,20 @@ public class CSSpectrumAllocationMain {
         double max_su_power = max_pu_power + 55;        // used for binary case
 
         // ********************************** SSs **********************************
-        int number_sensors = 3600;
+        int number_sensors = 1600;
 
         // ********************************** CS Spectrum Manager *********************
-        double csAlpha = 4;       // best values for splat [3.2-3.5]
+        double csAlpha = 3.3;       // best values for splat [3.2-3.5]
         int numPusSelected = 20;
-        int numSssSelected = 20;
-        CSSpectrumManager.INTERPOLATION interpolationType = CSSpectrumManager.INTERPOLATION.IDW;
+        int numSssSelected = 5;
+        CSSpectrumManager.INTERPOLATION interpolationType = CSSpectrumManager.INTERPOLATION.OK;
 
         // ********************************** General **********************************
         // MAX_POWER = True   # make it true if you want to achieve the highest power su can have without interference.
         // calculation for conservative model would also be done
-        int number_of_process = 6;                      // number of process
+        int number_of_process = 1;                      // number of process
         //INTERPOLATION, CONSERVATIVE = False, False
-        int n_samples = 60000;                            // number of samples
+        int n_samples = 10000;                            // number of samples
 
         long beginTime = System.currentTimeMillis();
         String sensorPath = String.format("%s%s/%d/sensors.txt", SENSOR_PATH, field_shape.toString(),

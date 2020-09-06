@@ -204,7 +204,7 @@ public class CSSpectrumManager {
                         break;
                     }
                     if (detrended) {
-                        nearestSsPuPL[ssi] = WirelessTools.getDB(nearestSsPuPL[ssi]) -
+                        nearestSsPuPL[ssi] = -WirelessTools.getDB(nearestSsPuPL[ssi]) -
                                 logDistancePM.pathLoss(this.pus[puId].getTx().getElement().getLocation().distance(
                                         this.sss[ssi].getRx().getElement().getLocation()) * this.cellSize);
                     }
@@ -217,7 +217,7 @@ public class CSSpectrumManager {
                 OrdinaryKriging ordinaryKriging = new OrdinaryKriging(nearestSsLocations, nearestSsPuPL,
                         requestingSu.getTx().getElement().getLocation().getCartesian().getX() * cellSize,
                         requestingSu.getTx().getElement().getLocation().getCartesian().getY() * cellSize);
-                double interpolatedValue = 0.0;
+                double interpolatedValue;
                 try {
 //                    System.out.println(Arrays.toString(nearestSsPuPL));
                     interpolatedValue = ordinaryKriging.interpolate();
@@ -228,7 +228,7 @@ public class CSSpectrumManager {
                     interpolatedValue = interpolatedValue +
                             logDistancePM.pathLoss(this.pus[puId].getTx().getElement().getLocation().distance(
                                     requestingSu.getTx().getElement().getLocation()) * this.cellSize);
-                pusSUPL[puId] = WirelessTools.getDecimal(interpolatedValue);
+                pusSUPL[puId] = WirelessTools.getDecimal(-interpolatedValue);
             }//end of pus
             for (int suId = 0; suId < this.sus.length - 1; suId++){     // sus-su interpolation
                 double[] nearestSsPuPL = new double[nearestSS.length];      // pl value for nearest ss

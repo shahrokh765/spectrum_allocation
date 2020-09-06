@@ -20,6 +20,7 @@ public class SpectrumManager {
     private double suMaxPower = Double.NEGATIVE_INFINITY;   // maximum power allowed for requesting su
     private PU mostRestrictivePuIdx = null;                 // index of PU that enforces the most restrictive path-loss
                                                             // pair relation with requesting SU
+    private final double noiseFloor;                        // noiseFloor
 
     /**Spectrum Manager's constructor
      * @param pus array of PU
@@ -27,9 +28,10 @@ public class SpectrumManager {
      * @param sss array of SpectrumSensor
      * @param propagationModel PropagationModel
      * @param shape field's shape
-     * @param cellSize size of each cell that represents*/
+     * @param cellSize size of each cell that represents
+     * @param noiseFloor noise floor*/
     public SpectrumManager(PU[] pus, SU[] sus, SpectrumSensor[] sss, PropagationModel propagationModel,
-                           Shape shape, int cellSize){
+                           Shape shape, int cellSize, double noiseFloor){
         super();
         this.pus = pus;
         this.sus = sus;
@@ -37,6 +39,7 @@ public class SpectrumManager {
         this.propagationModel = propagationModel;
         this.shape = shape;
         this.cellSize = cellSize;
+        this.noiseFloor = noiseFloor;
     }
 
     /**This method should be executed for each sample to compute received power for PURs and Spectrum Sensors.
@@ -227,7 +230,8 @@ public class SpectrumManager {
                     // pur location is relational and it should be updated first
                     Element purElement = new Element(pu.getTx().getElement().getLocation().add(
                             pur.getRx().getElement().getLocation()), pur.getRx().getElement().getHeight());
-                    double suPowerAtPUR = pur.getInterferenceCapacity();
+                    double suPowerAtPUR = Math.max(pur.getInterferenceCapacity(), noiseFloor);
+                                            // interferences lower than noiseFloor is replaced by noiseFloor
                     double loss = this.propagationModel.pathLoss(su.getTx().getElement().mul(this.cellSize),
                             purElement.mul(cellSize));
                     if (suPowerAtPUR + loss < maxPower) {

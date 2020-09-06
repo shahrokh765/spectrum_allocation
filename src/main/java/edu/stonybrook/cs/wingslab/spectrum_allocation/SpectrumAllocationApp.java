@@ -69,7 +69,7 @@ public class SpectrumAllocationApp implements Runnable{
     // minimum power value(dB) an PU can get
     private final double maxPuPower;
     // minimum power value(dB) an PU can get
-    //private final double noiseFloor;
+    private final double noiseFloor;
     // noise floor level (dB)
     private final PUType puType;
     // progress bar length
@@ -109,7 +109,8 @@ public class SpectrumAllocationApp implements Runnable{
      * @param numberOfInterpolatedSensor number of known sensors to be selected
      * @param interpolationType interpolation type
      * @param puSyntheticSamples indicates if synthetic samples for pu be generated
-     * @param maxTransRadius maximum transmission radius maximum power can get*/
+     * @param maxTransRadius maximum transmission radius maximum power can get
+     * @param noiseFloor noise floor*/
     public SpectrumAllocationApp(int sampleCount, String fileAppendix,
                                  ConcurrentHashMap<Integer, HashMap<String, Double>> resultDict,
                                  PropagationModel propagationModel, PU[] pus, SpectrumSensor[] sss, Shape shape,
@@ -117,7 +118,7 @@ public class SpectrumAllocationApp implements Runnable{
                                  double suHeight, int minPuNum, int maxPuNum, double minPuPower, double maxPuPower,
                                  PUType puType, SpectrumSensor[] interSss, int numberOfInterpolatedSensor,
                                  InterpolatedSpectrumSensor.InterpolationType interpolationType,
-                                 boolean puSyntheticSamples, double maxTransRadius){
+                                 boolean puSyntheticSamples, double maxTransRadius, double noiseFloor){
         super();
         this.sampleCount = sampleCount;
         this.threadId = SpectrumAllocationApp.threadNum++;
@@ -137,7 +138,7 @@ public class SpectrumAllocationApp implements Runnable{
         this.maxPuNum = maxPuNum;
         this.minPuPower = minPuPower;
         this.maxPuPower = maxPuPower;
-        //this.noiseFloor = noiseFloor;
+        this.noiseFloor = noiseFloor;
         this.puType = puType;
         this.interSss = interSss;
         this.interpolationType = interpolationType;
@@ -175,16 +176,17 @@ public class SpectrumAllocationApp implements Runnable{
      * @param maxPuNum maximum number of PUs for each sample
      * @param minPuPower minimum power value of SUs for each sample
      * @param maxPuPower maximum power value of SUs for each sample
-     * @param puType if PUs are static or dynamic*/
+     * @param puType if PUs are static or dynamic
+     * @param noiseFloor noiseFLoor*/
     public SpectrumAllocationApp(int sampleCount, String fileAppendix,
                                  ConcurrentHashMap<Integer, HashMap<String, Double>> resultDict,
                                  PropagationModel propagationModel, PU[] pus, SpectrumSensor[] sss, Shape shape,
                                  int cellSize, int minSuNum, int maxSuNum, double minSuPower, double maxSuPower,
                                  double suHeight, int minPuNum, int maxPuNum, double minPuPower, double maxPuPower,
-                                 PUType puType) {
+                                 PUType puType, double noiseFloor) {
         this(sampleCount, fileAppendix, resultDict, propagationModel, pus, sss, shape, cellSize, minSuNum,
                 maxSuNum, minSuPower,  maxSuPower, suHeight, minPuNum, maxPuNum, minPuPower, maxPuPower, puType,
-                null, 0, null, false, 0.0);
+                null, 0, null, false, 0.0, noiseFloor);
     }
 
 
@@ -219,7 +221,7 @@ public class SpectrumAllocationApp implements Runnable{
             PrintWriter interWriter = (this.interSss == null ? null : new PrintWriter(interFile));
             PrintWriter syntheticWriter = (!this.puSyntheticSamples ? null : new PrintWriter(syntheticFile))){
             SpectrumManager sm = new SpectrumManager(this.pus, null, this.sss, this.propagationModel,
-                    this.shape, this.cellSize);
+                    this.shape, this.cellSize, this.noiseFloor);
             // init spectrum manager with fixed parameters; although pu information may change, the objects do not change
 
             if(this.puType == PUType.STATIC && this.minSuNum == this.maxSuNum && this.minSuNum == 1)

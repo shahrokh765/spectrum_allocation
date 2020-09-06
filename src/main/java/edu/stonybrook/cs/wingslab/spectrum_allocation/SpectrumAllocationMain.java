@@ -50,7 +50,7 @@ public class SpectrumAllocationMain {
         SpectrumAllocationApp.PUType puType =
                 SpectrumAllocationApp.PUType.DYNAMIC;   // DYNAMIC means PU's power and location changes for each sample.
                                                         // STATIC means they do not change.
-        int min_pus_number = 20;                        // min number of pus all over the field
+        int min_pus_number = 10;                        // min number of pus all over the field
         int max_pus_number = 20;                        // max number of pus all over the field;
                                                         // i.e. # of pus is different for each sample.
                                                         // min=max means # of pus doesn't change
@@ -65,7 +65,7 @@ public class SpectrumAllocationMain {
 
         // ********************************** SUs **********************************
         int min_sus_number = 1;
-        int max_sus_number = 1;                         // min(max) number of sus; i.e. # of sus is different for each sample.
+        int max_sus_number = 10;                         // min(max) number of sus; i.e. # of sus is different for each sample.
         double min_su_power = min_pu_power - 5;         // used for binary case
         double max_su_power = max_pu_power + 55;        // used for binary case
 
@@ -94,7 +94,7 @@ public class SpectrumAllocationMain {
         // calculation for conservative model would also be done
         int number_of_process = 8;                      // number of process
         //INTERPOLATION, CONSERVATIVE = False, False
-        int n_samples = 60000;                            // number of samples
+        int n_samples = 1000;                            // number of samples
 
         long beginTime = System.currentTimeMillis();
         String sensorPath = String.format("%s%s/%d/sensors.txt", SENSOR_PATH, field_shape.toString(),
@@ -138,7 +138,7 @@ public class SpectrumAllocationMain {
                 min_pur_dist, max_pur_dist, rx_height);
 
         // TODO implement std calculation
-        CalculateSTD calculateSTD = new CalculateSTD(pus, pm, field_shape, cell_size);
+        CalculateSTD calculateSTD = new CalculateSTD(pus, pm, field_shape, cell_size, noise_floor);
         System.out.println(calculateSTD.getStd());
 
         // ****************************** creating threads ************************
@@ -182,7 +182,8 @@ public class SpectrumAllocationMain {
                         resultDict, threadPM, threadCopyPUs, threadCopySss, threadShape, cell_size,
                         min_sus_number, max_sus_number, min_su_power, max_su_power, tx_height,
                         min_pus_number, max_pus_number, min_pu_power, max_pu_power, puType,
-                        null, 0, null, IS_SYNTHETIC, maxTransRadius));
+                        null, 0, null, IS_SYNTHETIC,
+                        maxTransRadius, noise_floor));
             else{
                 SpectrumSensor[] threadCopyInterSss = new SpectrumSensor[interSss.length];
                 for (int interSsId = 0; interSsId < interSss.length; interSsId++)
@@ -194,7 +195,7 @@ public class SpectrumAllocationMain {
                         min_pus_number, max_pus_number, min_pu_power, max_pu_power, puType,
                         threadCopyInterSss,
                         numberOfSensorsInterpolated, interpolationType,
-                        IS_SYNTHETIC, maxTransRadius));
+                        IS_SYNTHETIC, maxTransRadius, noise_floor));
             }
             threads[i].start();
         }

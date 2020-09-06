@@ -155,7 +155,7 @@ public class CSSpectrumAllocationMain {
                     resultDict, threadPM, threadCopyPUs, threadCopySss, threadShape, cell_size,
                     min_sus_number, max_sus_number, min_su_power, max_su_power, tx_height,
                     min_pus_number, max_pus_number, min_pu_power, max_pu_power, puType,
-                    interpolationType, numPusSelected, numSssSelected, csAlpha));
+                    interpolationType, numPusSelected, numSssSelected, csAlpha, noise_floor));
             threads[i].start();
         }
 

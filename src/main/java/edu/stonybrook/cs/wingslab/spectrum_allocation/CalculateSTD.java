@@ -10,7 +10,7 @@ public class CalculateSTD {
 //    SpectrumManager spectrumManager;
     private double std;
 
-    public CalculateSTD(PU[] pus, PropagationModel pm, Shape shape, int cellSize){
+    public CalculateSTD(PU[] pus, PropagationModel pm, Shape shape, int cellSize, double noiseFloor){
         for (PU pu : pus)
             pu.setON(true);
         SU[] sampleSU = new SU[]{new SU(new TX(new Element(shape.points(1)[0], 15.0),
@@ -19,7 +19,7 @@ public class CalculateSTD {
         double rEpsilon = 1.0;
         double sum = 0.0;
         int count = 0;
-        SpectrumManager spectrumManager = new SpectrumManager(pus, null, null, pm, shape, cellSize);
+        SpectrumManager spectrumManager = new SpectrumManager(pus, null, null, pm, shape, cellSize, noiseFloor);
         for (int i = 0; i < 500; i++){
             sampleSU[0] = new SU(new TX(sampleSU[0].getTx().getElement().add(new
                     Point(new PolarPoint(ThreadLocalRandom.current().nextDouble(0, rEpsilon),

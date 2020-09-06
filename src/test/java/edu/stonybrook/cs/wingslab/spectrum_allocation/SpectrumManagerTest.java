@@ -44,7 +44,7 @@ public class SpectrumManagerTest extends TestCase {
         Shape shape = new Square(1000);
         SpectrumManager spectrumManager = new SpectrumManager(
                 createPus(shape,15), createSUs(shape, 1), createSS(shape, 400),
-                new LogDistancePM(3, 1), shape, 1);
+                new LogDistancePM(3, 1), shape, 1, -90.0);
         System.out.println(spectrumManager.computeSUMAXPower(false));
     }
 
@@ -52,7 +52,7 @@ public class SpectrumManagerTest extends TestCase {
         Shape shape = new Square(1000);
         SpectrumManager spectrumManager = new SpectrumManager(
                 createPus(shape,15), createSUs(shape, 1), createSS(shape, 400),
-                new LogDistancePM(3, 1), shape, 1);
+                new LogDistancePM(3, 1), shape, 1, -90.0);
         spectrumManager.computeSUMAXPower(false);
         System.out.println(spectrumManager.suRequestAccepted());
     }
@@ -61,7 +61,7 @@ public class SpectrumManagerTest extends TestCase {
         Shape shape = new Square(1000);
         SpectrumManager spectrumManager = new SpectrumManager(
                 createPus(shape,15), createSUs(shape, 1), createSS(shape, 400),
-                new LogDistancePM(3, 1), shape, 1);
+                new LogDistancePM(3, 1), shape, 1, -90.0);
         spectrumManager.computeSUMAXPower(false);
         System.out.println(spectrumManager.pusSample());
     }
@@ -70,7 +70,7 @@ public class SpectrumManagerTest extends TestCase {
         Shape shape = new Square(1000);
         SpectrumManager spectrumManager = new SpectrumManager(
                 createPus(shape,15), createSUs(shape, 1), createSS(shape, 400),
-                new LogDistancePM(3, 1), shape, 1);
+                new LogDistancePM(3, 1), shape, 1, -90.0);
         spectrumManager.computeSUMAXPower(false);
         System.out.println(spectrumManager.sssSample());
     }
@@ -79,7 +79,7 @@ public class SpectrumManagerTest extends TestCase {
         Shape shape = new Square(1000);
         SpectrumManager spectrumManager = new SpectrumManager(
                 createPus(shape,15), createSUs(shape, 1), createSS(shape, 400),
-                new LogDistancePM(3, 1), shape, 1);
+                new LogDistancePM(3, 1), shape, 1, -90.0);
         spectrumManager.computeSUMAXPower(false);
         System.out.println(spectrumManager.pusSample());
         System.out.println(spectrumManager.maxPowerSample());

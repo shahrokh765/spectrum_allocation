@@ -2,10 +2,7 @@ package edu.stonybrook.cs.wingslab.spectrum_allocation;
 
 import edu.stonybrook.cs.wingslab.commons.*;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -20,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 public class SpectrumAllocationMain {
-    public static void main(String... args) throws InterruptedException {
+    public static void main(String... args) throws InterruptedException, IOException, ClassNotFoundException {
         // **********************************   PATHS   ****************************************
         String TMP_DIR = "resources/tmp/";
         String SPLAT_DIR = "../commons/resources/splat/";
@@ -54,7 +51,7 @@ public class SpectrumAllocationMain {
         int max_pus_number = 20;                        // max number of pus all over the field;
                                                         // i.e. # of pus is different for each sample.
                                                         // min=max means # of pus doesn't change
-        double min_pu_power = -30.0;
+        double min_pu_power = 0.0;
         double max_pu_power = 0.0;                      // in dB. PU's power do not change for static PUs case
         int pur_number = 5;                            // number of purs each pu can have 10 for log, 5 for splat
         PUR.InterferenceMethod pur_metric =
@@ -62,15 +59,18 @@ public class SpectrumAllocationMain {
         double pur_metric_value = 0.05;                  // beta: 0.05 for splat and 1 for log, threshold(power in dB)
         double min_pur_dist = 1.0;                      // * cell_size, min_distance from each pur to its pu
         double max_pur_dist = 2.0;                      // * cell_size, max_distance from each pur to its pu
+        boolean PU_LOCATION_BASED_PROBABILITY = false;
+        String PROBABILITY_TABLE_PATH = "../commons/resources/sensors/square100/placement/locations_probability.dat";               
 
         // ********************************** SUs **********************************
         int min_sus_number = 1;
-        int max_sus_number = 10;                         // min(max) number of sus; i.e. # of sus is different for each sample.
+        int max_sus_number = 1;                         // min(max) number of sus; i.e. # of sus is different for each sample.
         double min_su_power = min_pu_power - 5;         // used for binary case
         double max_su_power = max_pu_power + 55;        // used for binary case
 
         // ********************************** SSs **********************************
-        int number_sensors = 100;
+        int number_sensors = 49;
+        boolean PLACEMENT = false;       // indicate if we want select sensors uniformly(false) or through placement algo
 
         // ********************************** Interpolated Sensors ********************
         boolean IS_INTERPOLATED = false;
@@ -92,13 +92,19 @@ public class SpectrumAllocationMain {
         // ********************************** General **********************************
         // MAX_POWER = True   # make it true if you want to achieve the highest power su can have without interference.
         // calculation for conservative model would also be done
-        int number_of_process = 8;                      // number of process
+        int number_of_process = 6;                      // number of process
         //INTERPOLATION, CONSERVATIVE = False, False
-        int n_samples = 1000;                            // number of samples
+        int n_samples = 50000;                            // number of samples
 
         long beginTime = System.currentTimeMillis();
-        String sensorPath = String.format("%s%s/%d/sensors.txt", SENSOR_PATH, field_shape.toString(),
-                number_sensors);
+        String sensorPath;
+        if (!PLACEMENT)
+            sensorPath = String.format("%s%s/%d/sensors.txt", SENSOR_PATH, field_shape.toString(),
+                    number_sensors);
+        else
+            sensorPath = String.format("%s%s/placement/terrain-based/himanshu/%d/sensors.txt",
+                    SENSOR_PATH, field_shape.toString(),
+                    number_sensors);
 
         String interSensorPath;
         SpectrumSensor[] interSss = null;
@@ -133,6 +139,13 @@ public class SpectrumAllocationMain {
             e.printStackTrace();
         }
         // creating pus
+        double[][] locationProbability = null;
+        if (PU_LOCATION_BASED_PROBABILITY && propagationModel.toLowerCase().equals("splat")){
+            FileInputStream fis = new FileInputStream(PROBABILITY_TABLE_PATH);
+            ObjectInputStream ois = new ObjectInputStream(fis);
+            locationProbability = (double[][]) ois.readObject();
+            Rectangle.calculateWeightedPoints(locationProbability, 100, 100);
+        }
         PU[] pus = createPUs(max_pus_number, field_shape, tx_height, min_pu_power, max_pu_power,
                 pur_metric, pur_metric_value, pur_number,
                 min_pur_dist, max_pur_dist, rx_height);
@@ -183,7 +196,7 @@ public class SpectrumAllocationMain {
                         min_sus_number, max_sus_number, min_su_power, max_su_power, tx_height,
                         min_pus_number, max_pus_number, min_pu_power, max_pu_power, puType,
                         null, 0, null, IS_SYNTHETIC,
-                        maxTransRadius, noise_floor));
+                        maxTransRadius, noise_floor, PU_LOCATION_BASED_PROBABILITY));
             else{
                 SpectrumSensor[] threadCopyInterSss = new SpectrumSensor[interSss.length];
                 for (int interSsId = 0; interSsId < interSss.length; interSsId++)
@@ -195,7 +208,7 @@ public class SpectrumAllocationMain {
                         min_pus_number, max_pus_number, min_pu_power, max_pu_power, puType,
                         threadCopyInterSss,
                         numberOfSensorsInterpolated, interpolationType,
-                        IS_SYNTHETIC, maxTransRadius, noise_floor));
+                        IS_SYNTHETIC, maxTransRadius, noise_floor, PU_LOCATION_BASED_PROBABILITY));
             }
             threads[i].start();
         }
@@ -275,7 +288,8 @@ public class SpectrumAllocationMain {
                     fetchNum, (double) fetchTime / fetchNum, execNum, (double) execTime / execNum));
 
             // saving new pl map
-            Splat.writePlDictToJson(SPLAT_DIR + "pl_map/" + splatFileName + ".new");
+            if (execNum > 10)
+                Splat.writePlDictToJson(SPLAT_DIR + "pl_map/" + splatFileName + ".new");
         }
         long duration = System.currentTimeMillis() - beginTime;
         System.out.println(String.format("Duration = %d:%02d:%02d", TimeUnit.MILLISECONDS.toHours(duration),

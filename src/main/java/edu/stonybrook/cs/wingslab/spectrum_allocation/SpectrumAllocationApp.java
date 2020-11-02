@@ -84,6 +84,8 @@ public class SpectrumAllocationApp implements Runnable{
     private final boolean puSyntheticSamples;
     // maximum transmission radius used for creating synthetic samples
     private final double maxTransRadius;
+    // a boolean indicating if PU location is selected based on a probability table(supported for Rectangle and Square)
+    private final boolean PULocationProbabilityBased;
 
     /**
      * SpectrumAllocationApp constructor. Support interpolation.
@@ -110,7 +112,8 @@ public class SpectrumAllocationApp implements Runnable{
      * @param interpolationType interpolation type
      * @param puSyntheticSamples indicates if synthetic samples for pu be generated
      * @param maxTransRadius maximum transmission radius maximum power can get
-     * @param noiseFloor noise floor*/
+     * @param noiseFloor noise floor
+     * @param PULocationProbabilityBased boolean indicate if PU locations are created randomly or based on a probability map*/
     public SpectrumAllocationApp(int sampleCount, String fileAppendix,
                                  ConcurrentHashMap<Integer, HashMap<String, Double>> resultDict,
                                  PropagationModel propagationModel, PU[] pus, SpectrumSensor[] sss, Shape shape,
@@ -118,7 +121,8 @@ public class SpectrumAllocationApp implements Runnable{
                                  double suHeight, int minPuNum, int maxPuNum, double minPuPower, double maxPuPower,
                                  PUType puType, SpectrumSensor[] interSss, int numberOfInterpolatedSensor,
                                  InterpolatedSpectrumSensor.InterpolationType interpolationType,
-                                 boolean puSyntheticSamples, double maxTransRadius, double noiseFloor){
+                                 boolean puSyntheticSamples, double maxTransRadius, double noiseFloor,
+                                 boolean PULocationProbabilityBased){
         super();
         this.sampleCount = sampleCount;
         this.threadId = SpectrumAllocationApp.threadNum++;
@@ -145,6 +149,7 @@ public class SpectrumAllocationApp implements Runnable{
         this.numberOfInterpolatedSensor = numberOfInterpolatedSensor;
         this.puSyntheticSamples = puSyntheticSamples;
         this.maxTransRadius = maxTransRadius;
+        this.PULocationProbabilityBased = PULocationProbabilityBased;
 
         //creating files and directory(if needed)
         Path dataPath = Paths.get(SpectrumAllocationApp.DATA_DIR);
@@ -183,10 +188,12 @@ public class SpectrumAllocationApp implements Runnable{
                                  PropagationModel propagationModel, PU[] pus, SpectrumSensor[] sss, Shape shape,
                                  int cellSize, int minSuNum, int maxSuNum, double minSuPower, double maxSuPower,
                                  double suHeight, int minPuNum, int maxPuNum, double minPuPower, double maxPuPower,
-                                 PUType puType, double noiseFloor) {
+                                 PUType puType, double noiseFloor,
+                                 boolean PULocationProbabilityBased) {
         this(sampleCount, fileAppendix, resultDict, propagationModel, pus, sss, shape, cellSize, minSuNum,
                 maxSuNum, minSuPower,  maxSuPower, suHeight, minPuNum, maxPuNum, minPuPower, maxPuPower, puType,
-                null, 0, null, false, 0.0, noiseFloor);
+                null, 0, null, false,
+                0.0, noiseFloor, PULocationProbabilityBased);
     }
 
 
@@ -231,8 +238,9 @@ public class SpectrumAllocationApp implements Runnable{
             long beginTime = System.currentTimeMillis();
             for (int sample = 1; sample < this.sampleCount + 1; sample++){
                 sm.setSus(createSUs());
-                if (puType == PUType.DYNAMIC)
-                    this.createActivePU(); // create(it's not actual creating) new active PUs
+                if (puType == PUType.DYNAMIC) {
+                    this.createActivePU();  // create(it's not actual creating) new active PUs
+                }
                 try{
                     sm.computeSUMAXPower(this.puType == PUType.STATIC &&
                             this.minSuNum == this.maxSuNum && this.minSuNum == 1);
@@ -288,7 +296,15 @@ public class SpectrumAllocationApp implements Runnable{
     private void createActivePU(){
         ArrayList<Integer> allPusIdx = new ArrayList<>();
         int numPus = ThreadLocalRandom.current().nextInt(minPuNum, maxPuNum + 1);
-        Point[] puPoints = this.shape.points(numPus);
+        Point[] puPoints;
+        if (!PULocationProbabilityBased)
+            puPoints = this.shape.points(numPus);
+        else {
+            if (this.shape.getClass() != Rectangle.class & this.shape.getClass() != Square.class)
+                throw new RuntimeException("Shape not supported for PU probability-based selection");
+            Rectangle rectangle = (Rectangle)this.shape;
+            puPoints = rectangle.ProbabilityBasedPoints(numPus);
+        }
         for (int i = 0; i < this.pus.length; i++) {
             this.pus[i].setON(false); // disabling all
             allPusIdx.add(i);

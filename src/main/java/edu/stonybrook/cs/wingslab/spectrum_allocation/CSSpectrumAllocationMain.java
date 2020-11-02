@@ -30,12 +30,12 @@ public class CSSpectrumAllocationMain {
         // ********************************** Field Parameters **********************************
         double tx_height = 30;                          // in meter
         double rx_height =  15;                         // in meter
-        Shape field_shape = new Square(1000);       // Square and Rectangle are supported for now.
+        Shape field_shape = new Square(100);       // Square and Rectangle are supported for now.
                                                         // in meter and originated in (0, 0). 1000 for log, 100 for splat
-        int cell_size = 1;                               // in meter
+        int cell_size = 10;                               // in meter
 
         // ********************************** Propagation Model **********************************
-        String propagationModel = "log";                // 'splat' or 'log'
+        String propagationModel = "splat";                // 'splat' or 'log'
         double alpha = 3;                               // propagation model coeff.  2.0 for 4km, 3 for 1km, 4.9 for 200m.
                                                         // Applicable for log
         boolean noise = true;                           // std in dB.
@@ -55,12 +55,12 @@ public class CSSpectrumAllocationMain {
                                                         // min=max means # of pus doesn't change
         double min_pu_power = -30.0;
         double max_pu_power = 0.0;                      // in dB. PU's power do not change for static PUs case
-        int pur_number = 10;                            // number of purs each pu can have 10 for log, 5 for splat
+        int pur_number = 5;                            // number of purs each pu can have 10 for log, 5 for splat
         PUR.InterferenceMethod pur_metric =
                 PUR.InterferenceMethod.BETA;            // BETA and THRESHOLD
-        double pur_metric_value = 1;                  // beta: 0.05 for splat and 1 for log, threshold(power in dB)
+        double pur_metric_value = 0.05;                  // beta: 0.05 for splat and 1 for log, threshold(power in dB)
         double min_pur_dist = 1.0;                      // * cell_size, min_distance from each pur to its pu
-        double max_pur_dist = 3.0;                      // * cell_size, max_distance from each pur to its pu
+        double max_pur_dist = 2.0;                      // * cell_size, max_distance from each pur to its pu
 
         // ********************************** SUs **********************************
         int min_sus_number = 1;
@@ -69,11 +69,11 @@ public class CSSpectrumAllocationMain {
         double max_su_power = max_pu_power + 55;        // used for binary case
 
         // ********************************** SSs **********************************
-        int number_sensors = 1600;
+        int number_sensors = 3600;
 
         // ********************************** CS Spectrum Manager *********************
-        double csAlpha = 3;       // best values for splat [3.2-3.5]
-        int numPusSelected = 20;
+        double csAlpha = 3.3;       // best values for splat [3.2-3.5]
+        int numPusSelected = 35;
         int numSssSelected = 15;
         CSSpectrumManager.INTERPOLATION interpolationType = CSSpectrumManager.INTERPOLATION.IDW;
 
@@ -82,7 +82,7 @@ public class CSSpectrumAllocationMain {
         // calculation for conservative model would also be done
         int number_of_process = 5;                      // number of process
         //INTERPOLATION, CONSERVATIVE = False, False
-        int n_samples = 50000;                            // number of samples
+        int n_samples = 5000;                            // number of samples
 
         long beginTime = System.currentTimeMillis();
         String sensorPath = String.format("%s%s/%d/sensors.txt", SENSOR_PATH, field_shape.toString(),
@@ -184,7 +184,7 @@ public class CSSpectrumAllocationMain {
                     fetchNum, (double) fetchTime / fetchNum, execNum, (double) execTime / execNum));
 
             // saving new pl map
-            if (execNum > 0)
+            if (execNum > 10)
                 Splat.writePlDictToJson(SPLAT_DIR + "pl_map/" + splatFileName + ".new");
         }
 

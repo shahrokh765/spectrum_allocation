@@ -242,6 +242,47 @@ public class SpectrumManager {
         return maxPower;
     }
 
+    private void calculateSusSINR(){
+        // ********** Calculate SINR for each SU's rx ********
+        SU[] sus = this.sus;
+        for (int suIdx = 0; suIdx < sus.length; suIdx++){
+            SU su = sus[suIdx];
+            double pathLoss = propagationModel.pathLoss(su.getTx().getElement(), su.getRxElement());
+            double signal = WirelessTools.getDecimal(sus[suIdx].getTx().getPower() - pathLoss);
+            // calculate interference from PUs and other SUs
+            double totalInterference = 0.0;
+            for (PU pu : pus){
+                if (pu.isON()){
+                    double puToSuPathLoss = propagationModel.pathLoss(pu.getTx().getElement(), su.getRxElement());
+                    totalInterference += WirelessTools.getDecimal(pu.getTx().getPower() - puToSuPathLoss);
+                }
+            }
+            // interference from other SUs
+            for (int otherSuIdx = 0; otherSuIdx < sus.length; otherSuIdx++){
+                if (suIdx != otherSuIdx){
+                    double suToSuPathLoss = propagationModel.pathLoss(sus[otherSuIdx].getTx().getElement(),
+                            su.getRxElement());
+                    totalInterference += WirelessTools.getDecimal(sus[otherSuIdx].getTx().getPower() -
+                            suToSuPathLoss);
+                }
+            }
+            su.setRxSINR(WirelessTools.getDB(signal / totalInterference));
+        }
+    }
+
+    public double[] susDataRate(){
+        this.calculateSusSINR();
+        SU[] sus = this.sus;
+        double bandwidth = 1e6;  // in hertz
+        double error = 10.404;  // in dB
+        double[] dataRate = new double[sus.length];
+        for (int suIdx = 0; suIdx < sus.length; suIdx++){
+            double tmp = 1 + WirelessTools.getDecimal(sus[suIdx].getRxSINR() - error);
+            dataRate[suIdx] = bandwidth * Math.log(tmp) / Math.log(2);
+        }
+        return dataRate;
+    }
+
     // ****** Getter & Setter
     public void setSus(SU[] sus) { this.sus = sus; }
 

@@ -221,6 +221,9 @@ public class SpectrumAllocationApp implements Runnable{
         File syntheticFile = new File(SpectrumAllocationApp.DATA_DIR + "/syntheticPu" +
                 fileNameFormat);    // synthetic pu file
 
+        int numberOfTotalSus = 0;
+        double susDataRate = 0.0;
+
         // opening files
         try(PrintWriter puWriter = new PrintWriter(puFile);
             PrintWriter ssWriter = new PrintWriter(ssFile);
@@ -270,7 +273,12 @@ public class SpectrumAllocationApp implements Runnable{
                         syntheticWriter.println(String.format("%s%d,%s,%s", syntheticPUs, sm.getSus().length,
                                 sm.susInformation(), sm.suRequestAccepted() ? "1":"0"));
                 }
-
+                // SUS data rate
+                double[] tmpSusDataRate = sm.susDataRate();
+                for (double suDataRate: tmpSusDataRate){
+                    numberOfTotalSus++;
+                    susDataRate += suDataRate;
+                }
                 System.out.print(progressBar(sample, System.currentTimeMillis() - beginTime));
             }
         }
@@ -281,6 +289,7 @@ public class SpectrumAllocationApp implements Runnable{
         System.out.println("");
         HashMap<String, Double> threadInfo = new HashMap<>();
         threadInfo.put("Accepted Number", (double) acceptedNum);
+        threadInfo.put("Average Data Rate", susDataRate/(numberOfTotalSus * 1e6));
         if (this.propagationModel instanceof Splat splat){
 
             threadInfo.put("Fetch Number", (double) splat.getFetchNum());
@@ -323,11 +332,18 @@ public class SpectrumAllocationApp implements Runnable{
         int susNum = ThreadLocalRandom.current().nextInt(this.minSuNum, this.maxSuNum + 1);
         Point[] susPoint = this.shape.points(susNum);
         SU[] sus = new SU[susNum];
+        Rectangle rectangle = (Rectangle)this.shape;
         for (int i = 0; i < susNum - 1; i++)
-            sus[i] = new SU(new TX(new Element(susPoint[i], this.suHeight), Double.NEGATIVE_INFINITY));
+            sus[i] = new SU(new TX(new Element(susPoint[i], this.suHeight), Double.NEGATIVE_INFINITY),
+                    new Element(susPoint[i].add(new Point(new PolarPoint(ThreadLocalRandom.current().nextDouble(
+                            100),
+                            ThreadLocalRandom.current().nextDouble(Math.PI)))), this.suHeight));
         // this one is the target to predict
         sus[susNum - 1] = new SU(new TX(new Element(susPoint[susNum - 1], this.suHeight),
-                ThreadLocalRandom.current().nextDouble(this.minSuPower, this.maxSuPower + Double.MIN_VALUE)));
+                ThreadLocalRandom.current().nextDouble(this.minSuPower, this.maxSuPower + Double.MIN_VALUE)),
+                new Element(susPoint[susNum - 1].add(new Point(new PolarPoint(ThreadLocalRandom.current().nextDouble(
+                        100),
+                        ThreadLocalRandom.current().nextDouble(Math.PI)))), this.suHeight));
         return sus;
     }
 

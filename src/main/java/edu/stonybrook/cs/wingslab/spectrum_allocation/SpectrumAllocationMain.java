@@ -27,12 +27,12 @@ public class SpectrumAllocationMain {
         // ********************************** Field Parameters **********************************
         double tx_height = 30;                          // in meter
         double rx_height =  15;                         // in meter
-        Shape field_shape = new Square(100);       // Square and Rectangle are supported for now.
+        Shape field_shape = new Square(1000);       // Square and Rectangle are supported for now.
                                                         // in meter and originated in (0, 0). 1000 for log, 100 for splat
-        int cell_size = 10;                               // in meter
+        int cell_size = 1;                               // in meter
 
         // ********************************** Propagation Model **********************************
-        String propagationModel = "splat";                // 'splat' or 'log'
+        String propagationModel = "log";                // 'splat' or 'log'
         double alpha = 3.5;                               // propagation model coeff.  2.0 for 4km, 3 for 1km, 4.9 for 200m.
                                                         // Applicable for log
         boolean noise = true;                           // std in dB.
@@ -51,25 +51,25 @@ public class SpectrumAllocationMain {
         int max_pus_number = 20;                        // max number of pus all over the field;
                                                         // i.e. # of pus is different for each sample.
                                                         // min=max means # of pus doesn't change
-        double min_pu_power = 0.0;
+        double min_pu_power = -30.0;
         double max_pu_power = 0.0;                      // in dB. PU's power do not change for static PUs case
-        int pur_number = 5;                            // number of purs each pu can have 10 for log, 5 for splat
+        int pur_number = 10;                            // number of purs each pu can have 10 for log, 5 for splat
         PUR.InterferenceMethod pur_metric =
                 PUR.InterferenceMethod.BETA;            // BETA and THRESHOLD
-        double pur_metric_value = 0.05;                  // beta: 0.05 for splat and 1 for log, threshold(power in dB)
+        double pur_metric_value = 1;                  // beta: 0.05 for splat and 1 for log, threshold(power in dB)
         double min_pur_dist = 1.0;                      // * cell_size, min_distance from each pur to its pu
-        double max_pur_dist = 2.0;                      // * cell_size, max_distance from each pur to its pu
+        double max_pur_dist = 3.0;                      // * cell_size, max_distance from each pur to its pu
         boolean PU_LOCATION_BASED_PROBABILITY = false;
         String PROBABILITY_TABLE_PATH = "../commons/resources/sensors/square100/placement/locations_probability.dat";               
 
         // ********************************** SUs **********************************
         int min_sus_number = 1;
-        int max_sus_number = 1;                         // min(max) number of sus; i.e. # of sus is different for each sample.
+        int max_sus_number = 4;                         // min(max) number of sus; i.e. # of sus is different for each sample.
         double min_su_power = min_pu_power - 5;         // used for binary case
         double max_su_power = max_pu_power + 55;        // used for binary case
 
         // ********************************** SSs **********************************
-        int number_sensors = 49;
+        int number_sensors = 100;
         boolean PLACEMENT = false;       // indicate if we want select sensors uniformly(false) or through placement algo
 
         // ********************************** Interpolated Sensors ********************
@@ -92,7 +92,7 @@ public class SpectrumAllocationMain {
         // ********************************** General **********************************
         // MAX_POWER = True   # make it true if you want to achieve the highest power su can have without interference.
         // calculation for conservative model would also be done
-        int number_of_process = 6;                      // number of process
+        int number_of_process = 8;                      // number of process
         //INTERPOLATION, CONSERVATIVE = False, False
         int n_samples = 50000;                            // number of samples
 
@@ -283,14 +283,25 @@ public class SpectrumAllocationMain {
                 if (threadInfo.containsKey("Execution Time"))
                     execTime += threadInfo.get("Execution Time").longValue();
             }
-            System.out.println(String.format("Fetching: %d times (%fms per each)\n" +
-                    "Execution Time: %d times (%.2fms per each)",
-                    fetchNum, (double) fetchTime / fetchNum, execNum, (double) execTime / execNum));
+            System.out.printf("Fetching: %d times (%fms per each)\n" +
+                            "Execution Time: %d times (%.2fms per each)%n",
+                    fetchNum, (double) fetchTime / fetchNum, execNum, (double) execTime / execNum);
 
             // saving new pl map
             if (execNum > 10)
                 Splat.writePlDictToJson(SPLAT_DIR + "pl_map/" + splatFileName + ".new");
         }
+        // calculating data rates
+        double totalDataRate = 0.0;
+        int numberOfThreads = 0;
+        for (HashMap<String, Double> threadInfo : resultDict.values()){
+            if (threadInfo.containsKey("Average Data Rate")){
+                totalDataRate += threadInfo.get("Average Data Rate");
+                numberOfThreads += 1;
+            }
+        }
+        System.out.printf("Average Data Rate is: %.2f Mbps\n", totalDataRate/numberOfThreads);
+
         long duration = System.currentTimeMillis() - beginTime;
         System.out.println(String.format("Duration = %d:%02d:%02d", TimeUnit.MILLISECONDS.toHours(duration),
                 TimeUnit.MILLISECONDS.toMinutes(duration) % TimeUnit.HOURS.toMinutes(1),

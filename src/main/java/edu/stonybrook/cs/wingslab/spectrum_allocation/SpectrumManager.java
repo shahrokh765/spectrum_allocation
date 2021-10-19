@@ -21,6 +21,7 @@ public class SpectrumManager {
     private PU mostRestrictivePuIdx = null;                 // index of PU that enforces the most restrictive path-loss
                                                             // pair relation with requesting SU
     private final double noiseFloor;                        // noiseFloor
+    private boolean purViolated = false;
 
     /**Spectrum Manager's constructor
      * @param pus array of PU
@@ -46,7 +47,8 @@ public class SpectrumManager {
      * Power values are received from ON PUs and SUs(except the last one which is requesting for power)*/
     private void computeReceivedPower(){
         computePURsReceivedPower();
-        computeSensorsReceivedPower();
+        if (!this.purViolated)  // only continues if PUs do not create interference for each other
+            computeSensorsReceivedPower();
 
     }
     // compute received power for Sensors
@@ -88,7 +90,14 @@ public class SpectrumManager {
         for (PU pu : this.pus)
             pu.resetPurs();
         computePURsReceivedPowerFromPUs();
-        computePURsReceivedPowerFromSUs();
+        // check if any pur is violated by another PU
+        for (PU pu : this.pus)
+            if (pu.isON())
+                for (PUR pur : pu.getPurs())
+                    if (pur.getInterferenceCapacity() == Double.NEGATIVE_INFINITY)
+                        this.purViolated = true;
+        if (!this.purViolated)  // continues if there is no interference to a PUR by a PU
+            computePURsReceivedPowerFromSUs();
         
     }
 
@@ -99,7 +108,8 @@ public class SpectrumManager {
                 for (PUR pur : pu.getPurs()) {
                     // this is done because PUR location information is relative to its PU
                     RX purRX = new RX(new Element(pu.getTx().getElement().getLocation().add(
-                            pur.getRx().getElement().getLocation()), pur.getRx().getElement().getHeight()));
+                            pur.getRx().getElement().getLocation()),
+                            pur.getRx().getElement().getHeight()));
                     pur.getRx().setReceived_power(powerWithPathLoss(pu.getTx(), purRX)); // power from its own PU
                     // now calculate power from other PUs(interference)
                     for (PU npu : this.pus)
@@ -150,9 +160,11 @@ public class SpectrumManager {
      * @throws RuntimeException in case of Splat! propagation model
      * @since 1.0*/
     public double computeSUMAXPower(boolean existingComputeSkip){
+        this.purViolated = false;
+        this.suMaxPower = Double.NEGATIVE_INFINITY;
         if (!existingComputeSkip)
             computeReceivedPower();
-        if (this.sus != null){
+        if (this.sus != null && !this.purViolated){
             this.suMaxPower = computeSUMaxPower(this.sus[this.sus.length - 1]);
             this.isAllowed = this.sus[this.sus.length - 1].getTx().getPower() <= this.suMaxPower;
             return this.suMaxPower;

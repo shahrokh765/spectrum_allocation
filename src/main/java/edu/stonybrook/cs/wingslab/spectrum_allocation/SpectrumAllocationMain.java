@@ -27,20 +27,20 @@ public class SpectrumAllocationMain {
         // ********************************** Field Parameters **********************************
         double tx_height = 30;                          // in meter
         double rx_height =  15;                         // in meter
-        Shape field_shape = new Square(1000);       // Square and Rectangle are supported for now.
+        Shape field_shape = new Square(100);       // Square and Rectangle are supported for now.
                                                         // in meter and originated in (0, 0). 1000 for log, 100 for splat
-        int cell_size = 1;                               // in meter
+        int cell_size = 5;                               // in meter
 
         // ********************************** Propagation Model **********************************
-        String propagationModel = "log";                // 'splat' or 'log'
-        double alpha = 3.5;                               // propagation model coeff.  2.0 for 4km, 3 for 1km, 4.9 for 200m.
+        String propagationModel = "splat";                // 'splat' or 'log'
+        double alpha = 3.3;                               // propagation model coeff.  2.0 for 4km, 3 for 1km, 4.9 for 200m.
                                                         // Applicable for log
         boolean noise = true;                           // std in dB.
         double std =  1.0;                              // Applicable for log
-        GeographicPoint splat_left_upper_ref = new GeographicPoint(40.800595,
-                73.107507);                         // ISLIP lat and lon
-        double noise_floor = -90;                       // noise floor
-        String splatFileName = "pl_map_array.json";            // splat saved file name
+        //GeographicPoint splat_left_upper_ref = new GeographicPoint(40.800595, 73.107507);      // ISLIP lat and lon
+        GeographicPoint splat_left_upper_ref = new GeographicPoint(40.912004,73.122076); // SBU
+        double noise_floor = -120;                       // noise floor
+        String splatFileName = "pl_map_array.sbu.json";            // splat saved file name
         //SharedDictionary = False  # means pl_map is shared among sub process or not. Applicatble for Splat
 
         // ********************************** PUs&PURs **********************************
@@ -53,23 +53,23 @@ public class SpectrumAllocationMain {
                                                         // min=max means # of pus doesn't change
         double min_pu_power = -30.0;
         double max_pu_power = 0.0;                      // in dB. PU's power do not change for static PUs case
-        int pur_number = 10;                            // number of purs each pu can have 10 for log, 5 for splat
+        int pur_number = 5;                            // number of purs each pu can have 10 for log, 5 for splat
         PUR.InterferenceMethod pur_metric =
                 PUR.InterferenceMethod.BETA;            // BETA and THRESHOLD
-        double pur_metric_value = 1;                  // beta: 0.05 for splat and 1 for log, threshold(power in dB)
+        double pur_metric_value = 0.05;                  // beta: 0.05 for splat and 0.1 for log, threshold(power in dB)
         double min_pur_dist = 1.0;                      // * cell_size, min_distance from each pur to its pu
-        double max_pur_dist = 3.0;                      // * cell_size, max_distance from each pur to its pu
+        double max_pur_dist = 2.0;                      // * cell_size, max_distance from each pur to its pu
         boolean PU_LOCATION_BASED_PROBABILITY = false;
         String PROBABILITY_TABLE_PATH = "../commons/resources/sensors/square100/placement/locations_probability.dat";               
 
         // ********************************** SUs **********************************
         int min_sus_number = 1;
-        int max_sus_number = 4;                         // min(max) number of sus; i.e. # of sus is different for each sample.
+        int max_sus_number = 1;                         // min(max) number of sus; i.e. # of sus is different for each sample.
         double min_su_power = min_pu_power - 5;         // used for binary case
         double max_su_power = max_pu_power + 55;        // used for binary case
 
         // ********************************** SSs **********************************
-        int number_sensors = 100;
+        int number_sensors = 49;
         boolean PLACEMENT = false;       // indicate if we want select sensors uniformly(false) or through placement algo
 
         // ********************************** Interpolated Sensors ********************
@@ -92,9 +92,9 @@ public class SpectrumAllocationMain {
         // ********************************** General **********************************
         // MAX_POWER = True   # make it true if you want to achieve the highest power su can have without interference.
         // calculation for conservative model would also be done
-        int number_of_process = 8;                      // number of process
+        int number_of_process = 7;                      // number of process
         //INTERPOLATION, CONSERVATIVE = False, False
-        int n_samples = 50000;                            // number of samples
+        int n_samples = 2100;                            // number of samples
 
         long beginTime = System.currentTimeMillis();
         String sensorPath;
@@ -151,8 +151,10 @@ public class SpectrumAllocationMain {
                 min_pur_dist, max_pur_dist, rx_height);
 
         // TODO implement std calculation
-        CalculateSTD calculateSTD = new CalculateSTD(pus, pm, field_shape, cell_size, noise_floor);
-        System.out.println(calculateSTD.getStd());
+        if (false) {
+            CalculateSTD calculateSTD = new CalculateSTD(pus, pm, field_shape, cell_size, noise_floor);
+            System.out.println(calculateSTD.getStd());
+        }
 
         // ****************************** creating threads ************************
         ConcurrentHashMap<Integer, HashMap<String, Double>> resultDict = new ConcurrentHashMap<>();

@@ -216,8 +216,9 @@ public class SpectrumManager {
     public String sssSample(){
         // sensors information
         StringBuilder ssInformation = new StringBuilder(""); // better to use StringBuilder for concatenation
-        for (SpectrumSensor spectrumSensor : this.sss)
-            ssInformation.append(String.format("%1$.3f,", spectrumSensor.getRx().getReceived_power()));
+        if (this.suMaxPower != Double.NEGATIVE_INFINITY)
+            for (SpectrumSensor spectrumSensor : this.sss)
+                ssInformation.append(String.format("%1$.3f,", spectrumSensor.getRx().getReceived_power()));
         return String.format("%1$s%2$d,%3$s,%4$s", ssInformation,
                 this.sus.length, susInformation(), this.isAllowed ? "1":"0");
     }
@@ -286,7 +287,7 @@ public class SpectrumManager {
         this.calculateSusSINR();
         SU[] sus = this.sus;
         double bandwidth = 1e6;  // in hertz
-        double error = 10.404;  // in dB
+        double error = 7;  // in dB
         double[] dataRate = new double[sus.length];
         for (int suIdx = 0; suIdx < sus.length; suIdx++){
             double tmp = 1 + WirelessTools.getDecimal(sus[suIdx].getRxSINR() - error);

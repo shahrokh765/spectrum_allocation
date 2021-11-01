@@ -29,7 +29,7 @@ public class SpectrumAllocationMain {
         double rx_height =  15;                         // in meter
         Shape field_shape = new Square(100);       // Square and Rectangle are supported for now.
                                                         // in meter and originated in (0, 0). 1000 for log, 100 for splat
-        int cell_size = 5;                               // in meter
+        int cell_size = 10;                               // in meter
 
         // ********************************** Propagation Model **********************************
         String propagationModel = "splat";                // 'splat' or 'log'
@@ -37,10 +37,10 @@ public class SpectrumAllocationMain {
                                                         // Applicable for log
         boolean noise = true;                           // std in dB.
         double std =  1.0;                              // Applicable for log
-        //GeographicPoint splat_left_upper_ref = new GeographicPoint(40.800595, 73.107507);      // ISLIP lat and lon
-        GeographicPoint splat_left_upper_ref = new GeographicPoint(40.912004,73.122076); // SBU
+        GeographicPoint splat_left_upper_ref = new GeographicPoint(40.800595, 73.107507);      // ISLIP lat and lon
+        //GeographicPoint splat_left_upper_ref = new GeographicPoint(40.912004,73.122076); // SBU
         double noise_floor = -120;                       // noise floor
-        String splatFileName = "pl_map_array.sbu.json";            // splat saved file name
+        String splatFileName = "pl_map_array.mcarthur.json";            // splat saved file name
         //SharedDictionary = False  # means pl_map is shared among sub process or not. Applicatble for Splat
 
         // ********************************** PUs&PURs **********************************
@@ -64,7 +64,7 @@ public class SpectrumAllocationMain {
 
         // ********************************** SUs **********************************
         int min_sus_number = 1;
-        int max_sus_number = 1;                         // min(max) number of sus; i.e. # of sus is different for each sample.
+        int max_sus_number = 5;                         // min(max) number of sus; i.e. # of sus is different for each sample.
         double min_su_power = min_pu_power - 5;         // used for binary case
         double max_su_power = max_pu_power + 55;        // used for binary case
 
@@ -92,9 +92,9 @@ public class SpectrumAllocationMain {
         // ********************************** General **********************************
         // MAX_POWER = True   # make it true if you want to achieve the highest power su can have without interference.
         // calculation for conservative model would also be done
-        int number_of_process = 7;                      // number of process
+        int number_of_process = 8;                      // number of process
         //INTERPOLATION, CONSERVATIVE = False, False
-        int n_samples = 2100;                            // number of samples
+        int n_samples = 30000;                            // number of samples
 
         long beginTime = System.currentTimeMillis();
         String sensorPath;

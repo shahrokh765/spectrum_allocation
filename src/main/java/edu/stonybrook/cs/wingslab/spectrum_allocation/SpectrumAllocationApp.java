@@ -86,6 +86,9 @@ public class SpectrumAllocationApp implements Runnable{
     private final double maxTransRadius;
     // a boolean indicating if PU location is selected based on a probability table(supported for Rectangle and Square)
     private final boolean PULocationProbabilityBased;
+    // A list of number of sensors in case we want to produce a dataset with variable-length sensors. If it has values,
+    // sss will be ignores.
+    private final int[] sss_counts;
 
     /**
      * SpectrumAllocationApp constructor. Support interpolation.
@@ -122,7 +125,7 @@ public class SpectrumAllocationApp implements Runnable{
                                  PUType puType, SpectrumSensor[] interSss, int numberOfInterpolatedSensor,
                                  InterpolatedSpectrumSensor.InterpolationType interpolationType,
                                  boolean puSyntheticSamples, double maxTransRadius, double noiseFloor,
-                                 boolean PULocationProbabilityBased){
+                                 boolean PULocationProbabilityBased, int[] sss_counts){
         super();
         this.sampleCount = sampleCount;
         this.threadId = SpectrumAllocationApp.threadNum++;
@@ -150,6 +153,7 @@ public class SpectrumAllocationApp implements Runnable{
         this.puSyntheticSamples = puSyntheticSamples;
         this.maxTransRadius = maxTransRadius;
         this.PULocationProbabilityBased = PULocationProbabilityBased;
+        this.sss_counts = sss_counts;
 
         //creating files and directory(if needed)
         Path dataPath = Paths.get(SpectrumAllocationApp.DATA_DIR);
@@ -193,7 +197,7 @@ public class SpectrumAllocationApp implements Runnable{
         this(sampleCount, fileAppendix, resultDict, propagationModel, pus, sss, shape, cellSize, minSuNum,
                 maxSuNum, minSuPower,  maxSuPower, suHeight, minPuNum, maxPuNum, minPuPower, maxPuPower, puType,
                 null, 0, null, false,
-                0.0, noiseFloor, PULocationProbabilityBased);
+                0.0, noiseFloor, PULocationProbabilityBased, new int[]{});
     }
 
 
@@ -220,6 +224,7 @@ public class SpectrumAllocationApp implements Runnable{
                 fileNameFormat);  // interpolation file
         File syntheticFile = new File(SpectrumAllocationApp.DATA_DIR + "/syntheticPu" +
                 fileNameFormat);    // synthetic pu file
+        File suMaxTotalFile = new File(SpectrumAllocationApp.DATA_DIR + "/suMaxTotal" + fileNameFormat);
 
         int numberOfTotalSus = 0;
         double susDataRate = 0.0;
@@ -229,9 +234,11 @@ public class SpectrumAllocationApp implements Runnable{
             PrintWriter ssWriter = new PrintWriter(ssFile);
             PrintWriter maxWriter = new PrintWriter(maxFile);
             PrintWriter interWriter = (this.interSss == null ? null : new PrintWriter(interFile));
-            PrintWriter syntheticWriter = (!this.puSyntheticSamples ? null : new PrintWriter(syntheticFile))){
+            PrintWriter syntheticWriter = (!this.puSyntheticSamples ? null : new PrintWriter(syntheticFile));
+            PrintWriter suTotWriter = new PrintWriter(suMaxTotalFile)){
             SpectrumManager sm = new SpectrumManager(this.pus, null, this.sss, this.propagationModel,
                     this.shape, this.cellSize, this.noiseFloor);
+
             // init spectrum manager with fixed parameters; although pu information may change, the objects do not change
 
             if(this.puType == PUType.STATIC && this.minSuNum == this.maxSuNum && this.minSuNum == 1)
@@ -240,6 +247,14 @@ public class SpectrumAllocationApp implements Runnable{
                 // only once to speedup
             long beginTime = System.currentTimeMillis();
             for (int sample = 1; sample < this.sampleCount + 1; sample++){
+                if (this.sss_counts.length > 0){
+                    // TODO: fix hard-coded parameters
+                    SpectrumSensor[] tmp_sss = SpectrumSensor.uniformSensorGenerator(
+                            sss_counts[ThreadLocalRandom.current().nextInt(sss_counts.length)], this.shape, 0.732,
+                            0, 0);
+                    sm = new SpectrumManager(this.pus, null, tmp_sss, this.propagationModel,
+                            this.shape, this.cellSize, this.noiseFloor);
+                }
                 sm.setSus(createSUs());
                 if (puType == PUType.DYNAMIC) {
                     this.createActivePU();  // create(it's not actual creating) new active PUs
@@ -247,6 +262,7 @@ public class SpectrumAllocationApp implements Runnable{
                 try{
                     sm.computeSUMAXPower(this.puType == PUType.STATIC &&
                             this.minSuNum == this.maxSuNum && this.minSuNum == 1);
+                    suTotWriter.println(sm.computeSUsTotalMaxPower());
                     if (sm.suRequestAccepted())
                         acceptedNum++;
                 }
@@ -336,13 +352,13 @@ public class SpectrumAllocationApp implements Runnable{
         for (int i = 0; i < susNum - 1; i++)
             sus[i] = new SU(new TX(new Element(susPoint[i], this.suHeight), Double.NEGATIVE_INFINITY),
                     new Element(susPoint[i].add(new Point(new PolarPoint(ThreadLocalRandom.current().nextDouble(
-                            100),
+                            30),
                             ThreadLocalRandom.current().nextDouble(Math.PI)))), this.suHeight));
         // this one is the target to predict
         sus[susNum - 1] = new SU(new TX(new Element(susPoint[susNum - 1], this.suHeight),
                 ThreadLocalRandom.current().nextDouble(this.minSuPower, this.maxSuPower + Double.MIN_VALUE)),
                 new Element(susPoint[susNum - 1].add(new Point(new PolarPoint(ThreadLocalRandom.current().nextDouble(
-                        100),
+                        30),
                         ThreadLocalRandom.current().nextDouble(Math.PI)))), this.suHeight));
         return sus;
     }

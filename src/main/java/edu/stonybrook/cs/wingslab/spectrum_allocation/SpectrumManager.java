@@ -2,6 +2,9 @@ package edu.stonybrook.cs.wingslab.spectrum_allocation;
 
 import edu.stonybrook.cs.wingslab.commons.*;
 
+import java.util.Arrays;
+import java.util.concurrent.ThreadLocalRandom;
+
 
 /**SpectrumManger assign power value to a requested SU based on its current state (using PUs or SSs)
  * @author Mohammad Ghaderibaneh <mghaderibane.cs.stonybrook.edu>
@@ -22,6 +25,7 @@ public class SpectrumManager {
                                                             // pair relation with requesting SU
     private final double noiseFloor;                        // noiseFloor
     private boolean purViolated = false;
+    private double[] susOptimalPower;
 
     /**Spectrum Manager's constructor
      * @param pus array of PU
@@ -41,6 +45,7 @@ public class SpectrumManager {
         this.shape = shape;
         this.cellSize = cellSize;
         this.noiseFloor = noiseFloor;
+//        this.susOptimalPower = new double[5];
     }
 
     /**This method should be executed for each sample to compute received power for PURs and Spectrum Sensors.
@@ -89,7 +94,7 @@ public class SpectrumManager {
             return;
         for (PU pu : this.pus)
             pu.resetPurs();
-        computePURsReceivedPowerFromPUs();
+        computePURsReceivedPowerFromPUs(this.pus);
         // check if any pur is violated by another PU
         for (PU pu : this.pus)
             if (pu.isON())
@@ -102,8 +107,8 @@ public class SpectrumManager {
     }
 
     // compute PUR received power from PUs
-    private void computePURsReceivedPowerFromPUs() {
-        for (PU pu : this.pus){
+    private void computePURsReceivedPowerFromPUs(PU[] pus) {
+        for (PU pu : pus){
             if (pu.isON())
                 for (PUR pur : pu.getPurs()) {
                     // this is done because PUR location information is relative to its PU
@@ -112,7 +117,7 @@ public class SpectrumManager {
                             pur.getRx().getElement().getHeight()));
                     pur.getRx().setReceived_power(powerWithPathLoss(pu.getTx(), purRX)); // power from its own PU
                     // now calculate power from other PUs(interference)
-                    for (PU npu : this.pus)
+                    for (PU npu : pus)
                         if (npu.isON() && npu != pu) {
                             double npuPurPathLoss = this.propagationModel.pathLoss(
                                     npu.getTx().getElement().mul(this.cellSize), purRX.getElement().mul(this.cellSize));
@@ -173,6 +178,99 @@ public class SpectrumManager {
             return Double.NEGATIVE_INFINITY;
     }
 
+    /**Compute maximum total SU powers they can send all together. This method tries to maximize total SUs power, from
+     * all SUs, at the same time*/
+    public String computeSUsTotalMaxPower() {
+        StringBuilder susTotalInfo = new StringBuilder("");
+        if (this.pus == null || this.purViolated) // if there is no PUs
+            return "-Infinity";
+
+        SU[] susTmp = new SU[this.sus.length];
+        for (int i = 0; i < this.sus.length; i++){
+            susTmp[i] = new SU(this.sus[i]);
+        }
+
+        double[] susLow = new double[this.sus.length];
+        double[] susHigh = new double[this.sus.length];
+        double diff = 0.1;  // a value that indicates when the binary search ends.
+        boolean allSatisfied = false;
+        Arrays.fill(susLow, this.noiseFloor);
+        Arrays.fill(susHigh, 100.0);  // 100 dB power as a max value
+
+
+        while (!allSatisfied){
+            PU[] pusTmp = new PU[this.pus.length];
+            for (int i = 0; i < this.pus.length; i++){
+                pusTmp[i] = new PU(this.pus[i]);
+                pusTmp[i].setON(this.pus[i].isON());
+            }
+            computePURsReceivedPowerFromPUs(pusTmp);
+
+            double[] mid = new double[this.sus.length];
+            System.arraycopy(susLow, 0, mid, 0, this.sus.length);
+            int targetIndex = -1;
+            double maxJump = Double.NEGATIVE_INFINITY;
+            for (int i = 0; i < this.sus.length; i++) {
+                if (susHigh[i] - susLow[i] > maxJump) {
+                    maxJump = susHigh[i] - susLow[i];
+                    targetIndex = i;
+                }
+            }
+            mid[targetIndex] = susLow[targetIndex] + (susHigh[targetIndex] - susLow[targetIndex])/2;
+            for (int i = 0; i < this.sus.length; i++){
+                susTmp[i].getTx().setPower(mid[i]);
+            }
+            if (isSUsCauseInterference(pusTmp, susTmp, this.propagationModel, this.cellSize)) {
+                susHigh[targetIndex] = mid[targetIndex];
+            }else {
+                susLow[targetIndex] = mid[targetIndex];
+            }
+
+            allSatisfied = true;
+            for (int i = 0; i < this.sus.length; i++){
+                if (susHigh[i] - susLow[i] > diff){
+                    allSatisfied = false;
+                    break;
+                }
+            }
+        }
+        this.susOptimalPower = new double[this.sus.length];
+        susTotalInfo.append(sus.length).append(",");
+        for (int i = 0; i < this.sus.length - 1; i++){
+            susTmp[i].getTx().setPower(susLow[i]);
+            susTotalInfo.append(susTmp[i]).append(",");
+            this.susOptimalPower[i] = susTmp[i].getTx().getPower();
+        }
+        susTmp[susTmp.length - 1].getTx().setPower(susLow[susTmp.length - 1]);
+        susTotalInfo.append(susTmp[susTmp.length - 1]);
+        this.susOptimalPower[susOptimalPower.length - 1] = susTmp[susTmp.length - 1].getTx().getPower();
+
+        return susTotalInfo.toString();
+    }
+
+    private static boolean isSUsCauseInterference(PU[] pus, SU[] sus, PropagationModel propagationModel, int cellSize){
+        if (sus == null) // no computations when there is no or one sensor
+            return false;
+        for (SU su : sus) {  // all sus' max power except the last one is calculated
+            if (su.getTx().getPower() != Double.NEGATIVE_INFINITY) // update PURs received power from SUs
+                for (PU pu : pus) {
+                    if (!pu.isON())
+                        continue;
+                    for (PUR pur : pu.getPurs()) {
+                        // pur location is relational and it should be updated first
+                        Element purElement = new Element(pu.getTx().getElement().getLocation().add(
+                                pur.getRx().getElement().getLocation()), pur.getRx().getElement().getHeight());
+                        double suPurPathLoss = propagationModel.pathLoss(su.getTx().getElement().mul(cellSize),
+                                purElement.mul(cellSize));
+                        pur.addInterference(su.getSuId(), su.getTx().getPower() - suPurPathLoss);
+                        if (pur.getInterferenceCapacity() == Double.NEGATIVE_INFINITY)
+                            return true;
+                    }
+                }
+        }
+        return false;
+    }
+
     /**will be used in case where user provides power for the requesting SU(last one of the array)
      * @return if the request is accepted
      * @since 1.0*/
@@ -219,7 +317,7 @@ public class SpectrumManager {
         if (this.suMaxPower != Double.NEGATIVE_INFINITY)
             for (SpectrumSensor spectrumSensor : this.sss)
                 ssInformation.append(String.format("%1$.3f,", spectrumSensor.getRx().getReceived_power()));
-        return String.format("%1$s%2$d,%3$s,%4$s", ssInformation,
+        return String.format("%1$d,%2$s%3$d,%4$s,%5$s", this.sss.length, ssInformation,
                 this.sus.length, susInformation(), this.isAllowed ? "1":"0");
     }
 
@@ -258,10 +356,16 @@ public class SpectrumManager {
     private void calculateSusSINR(){
         // ********** Calculate SINR for each SU's rx ********
         SU[] sus = this.sus;
+        double[] suPowers = new double[this.sus.length];
+        double error = 4.37/5;
+        for (int suIdx = 0; suIdx < this.sus.length; suIdx++){
+            suPowers[suIdx] = this.susOptimalPower[suIdx];// + ThreadLocalRandom.current().nextDouble(-error, 0);
+        }
         for (int suIdx = 0; suIdx < sus.length; suIdx++){
             SU su = sus[suIdx];
             double pathLoss = propagationModel.pathLoss(su.getTx().getElement(), su.getRxElement());
-            double signal = WirelessTools.getDecimal(sus[suIdx].getTx().getPower() - pathLoss);
+//            double signal = WirelessTools.getDecimal(sus[suIdx].getTx().getPower() - pathLoss);
+            double signal = WirelessTools.getDecimal(suPowers[suIdx] - pathLoss);
             // calculate interference from PUs and other SUs
             double totalInterference = 0.0;
             for (PU pu : pus){
@@ -275,7 +379,9 @@ public class SpectrumManager {
                 if (suIdx != otherSuIdx){
                     double suToSuPathLoss = propagationModel.pathLoss(sus[otherSuIdx].getTx().getElement(),
                             su.getRxElement());
-                    totalInterference += WirelessTools.getDecimal(sus[otherSuIdx].getTx().getPower() -
+//                    totalInterference += WirelessTools.getDecimal(sus[otherSuIdx].getTx().getPower() -
+//                            suToSuPathLoss);
+                    totalInterference += WirelessTools.getDecimal(suPowers[otherSuIdx] -
                             suToSuPathLoss);
                 }
             }
@@ -284,10 +390,12 @@ public class SpectrumManager {
     }
 
     public double[] susDataRate(){
+        if (this.purViolated)
+            return new double[0];
         this.calculateSusSINR();
         SU[] sus = this.sus;
         double bandwidth = 1e6;  // in hertz
-        double error = 7;  // in dB
+        double error = 3.4/5;//ThreadLocalRandom.current().nextDouble(-4.93, 4.93);  // in dB
         double[] dataRate = new double[sus.length];
         for (int suIdx = 0; suIdx < sus.length; suIdx++){
             double tmp = 1 + WirelessTools.getDecimal(sus[suIdx].getRxSINR() - error);

@@ -1,6 +1,7 @@
 package edu.stonybrook.cs.wingslab.spectrum_allocation;
 
 import edu.stonybrook.cs.wingslab.commons.Element;
+import edu.stonybrook.cs.wingslab.commons.Point;
 import edu.stonybrook.cs.wingslab.commons.TX;
 
 /**Secondar User(SU) whose request is processed by SpectrumManager to allocate spectrum.
@@ -41,6 +42,16 @@ public class SU {
         this.tx = tx;
         this.rxElement = rxElement;
         this.rxSINR = 0;
+    }
+
+    /** Copy constructor*/
+    public SU(SU su){
+        super();
+        this.suId = su.suId;
+        this.tx = new TX(new Element(new Point(su.tx.getElement().getLocation().getCartesian()),
+                su.tx.getElement().getHeight()), su.tx.getPower());
+        this.rxElement = new Element(new Point(su.rxElement.getLocation().getCartesian()), su.rxElement.getHeight());
+        this.rxSINR = su.rxSINR;
     }
 
     @Override

@@ -70,6 +70,7 @@ public class SpectrumAllocationMain {
 
         // ********************************** SSs **********************************
         int number_sensors = 49;
+        final int[] variable_length_ss = new int[]{};  // This has a priority over number_sensors
         boolean PLACEMENT = false;       // indicate if we want select sensors uniformly(false) or through placement algo
 
         // ********************************** Interpolated Sensors ********************
@@ -94,7 +95,7 @@ public class SpectrumAllocationMain {
         // calculation for conservative model would also be done
         int number_of_process = 8;                      // number of process
         //INTERPOLATION, CONSERVATIVE = False, False
-        int n_samples = 30000;                            // number of samples
+        int n_samples = 25000;                            // number of samples
 
         long beginTime = System.currentTimeMillis();
         String sensorPath;
@@ -198,7 +199,7 @@ public class SpectrumAllocationMain {
                         min_sus_number, max_sus_number, min_su_power, max_su_power, tx_height,
                         min_pus_number, max_pus_number, min_pu_power, max_pu_power, puType,
                         null, 0, null, IS_SYNTHETIC,
-                        maxTransRadius, noise_floor, PU_LOCATION_BASED_PROBABILITY));
+                        maxTransRadius, noise_floor, PU_LOCATION_BASED_PROBABILITY, variable_length_ss));
             else{
                 SpectrumSensor[] threadCopyInterSss = new SpectrumSensor[interSss.length];
                 for (int interSsId = 0; interSsId < interSss.length; interSsId++)
@@ -210,7 +211,7 @@ public class SpectrumAllocationMain {
                         min_pus_number, max_pus_number, min_pu_power, max_pu_power, puType,
                         threadCopyInterSss,
                         numberOfSensorsInterpolated, interpolationType,
-                        IS_SYNTHETIC, maxTransRadius, noise_floor, PU_LOCATION_BASED_PROBABILITY));
+                        IS_SYNTHETIC, maxTransRadius, noise_floor, PU_LOCATION_BASED_PROBABILITY, variable_length_ss));
             }
             threads[i].start();
         }
@@ -243,10 +244,17 @@ public class SpectrumAllocationMain {
         System.out.println("File " + "dynamic_pus_max_power_" + output_format + " saved at: " +
                 SpectrumAllocationApp.getDataDir());
 
-        mergeFiles(SpectrumAllocationApp.getDataDir(), "sensor_" + fileAppendix,  // merging sensor related files
-                SpectrumAllocationApp.getDataDir(), "dynamic_pus_" + number_sensors + "sensor_" + output_format);
-        System.out.println("File " + "dynamic_pus_" + number_sensors + "sensor_" + output_format + " saved at: " +
-                SpectrumAllocationApp.getDataDir());
+        if (variable_length_ss.length == 0) {
+            mergeFiles(SpectrumAllocationApp.getDataDir(), "sensor_" + fileAppendix,  // merging sensor related files
+                    SpectrumAllocationApp.getDataDir(), "dynamic_pus_" + number_sensors + "sensor_" + output_format);
+            System.out.println("File " + "dynamic_pus_" + number_sensors + "sensor_" + output_format + " saved at: " +
+                    SpectrumAllocationApp.getDataDir());
+        }else {
+            mergeFiles(SpectrumAllocationApp.getDataDir(), "sensor_" + fileAppendix,  // merging sensor related files
+                    SpectrumAllocationApp.getDataDir(), "dynamic_pus_variable_sensors_" + output_format);
+            System.out.println("File " + "dynamic_pus_variable_sensors_" + output_format + " saved at: " +
+                    SpectrumAllocationApp.getDataDir());
+        }
         if (IS_INTERPOLATED) {
             mergeFiles(SpectrumAllocationApp.getDataDir(), "interSensor_" + fileAppendix,  // merging sensor related files
                     SpectrumAllocationApp.getDataDir(), "dynamic_pus_" +
@@ -260,6 +268,11 @@ public class SpectrumAllocationMain {
             System.out.println("File " + "dynamic_pus_synthetic_" + output_format
                     + " saved at: " + SpectrumAllocationApp.getDataDir());
         }
+
+        mergeFiles(SpectrumAllocationApp.getDataDir(), "suMaxTotal_" + fileAppendix, // merging max information
+                SpectrumAllocationApp.getDataDir(), "dynamic_pus_maximum_total_sus" + output_format);
+        System.out.println("File " + "dynamic_pus_maximum_total_sus" + output_format + " saved at: " +
+                SpectrumAllocationApp.getDataDir());
 
 
         // displaying statistics
